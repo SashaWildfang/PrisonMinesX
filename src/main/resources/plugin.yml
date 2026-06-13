@@ -1,9 +1,24 @@
 name: PrisonMinesX
-version: '1.0.0'
+version: 1.0.0
 main: com.sasha.prisonminesx.PrisonMinesX
-api-version: '1.20' # Update this to your target modern version
+api-version: 1.20
+author: SashaTheSnep
+description: Advanced prison mines system
+
+depend: [FastAsyncWorldEdit]
+
+softdepend: []
 
 commands:
   prisonmines:
     description: Core command for PrisonMinesX
     aliases: [pmines]
+
+permissions:
+  prisonmines.admin:
+    description: Allows full access to PrisonMinesX admin commands
+    default: op
+
+  prisonmines.use:
+    description: Allows basic use of prison mines features
+    default: true
