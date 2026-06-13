@@ -1,6 +1,5 @@
 package com.sasha.prisonminesx;
 
-import com.sasha.prisonminesx.listeners.GUIListener;
 import com.sasha.prisonminesx.storage.DatabaseManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -19,6 +18,7 @@ public final class PrisonMinesX extends JavaPlugin {
 
         // Register the GUI Master Listener
         getServer().getPluginManager().registerEvents(new GUIListener(), this);
+
 
         getLogger().info("PrisonMinesX has been enabled successfully!");
     }
