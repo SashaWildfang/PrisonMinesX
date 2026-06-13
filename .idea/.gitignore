@@ -1,8 +1,52 @@
-# Default ignored files
-/shelf/
-/workspace.xml
-# Editor-based HTTP Client requests
-/httpRequests/
-# Datasource local storage ignored files
-/dataSources/
-/dataSources.local.xml
+# ----------------------
+# IntelliJ IDEA
+# ----------------------
+.idea/
+*.iml
+*.iws
+*.ipr
+shelf/
+workspace.xml
+httpRequests/
+dataSources/
+dataSources.local.xml
+
+# ----------------------
+# Gradle
+# ----------------------
+.gradle/
+build/
+
+# Keep wrapper (IMPORTANT)
+!gradle/wrapper/
+!gradlew
+!gradlew.bat
+
+# ----------------------
+# Java / build output
+# ----------------------
+out/
+*.class
+target/
+
+# ----------------------
+# Minecraft / plugin dev
+# ----------------------
+run/
+server/
+logs/
+
+# ----------------------
+# Secrets / configs
+# ----------------------
+.env
+config.yml
+secrets.yml
+*.key
+*.pem
+
+# ----------------------
+# OS junk
+# ----------------------
+.DS_Store
+Thumbs.db
