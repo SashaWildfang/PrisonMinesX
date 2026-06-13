@@ -1,0 +1,15 @@
+# ---------------------------------------------------------
+# Data Storage Settings
+# Options: YAML (Default), SQLITE, MYSQL
+# ---------------------------------------------------------
+storage:
+  type: "YAML"
+
+  # Only required if type is set to "MYSQL"
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "prisonminesx"
+    username: "root"
+    password: "password"
+    use-ssl: false
