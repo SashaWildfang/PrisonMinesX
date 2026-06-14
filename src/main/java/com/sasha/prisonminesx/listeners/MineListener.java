@@ -24,23 +24,16 @@ public class MineListener implements Listener {
         this.defaultPercentage = plugin.getConfig().getDouble("settings.default-reset-percentage", 20.0);
     }
 
-    // NEW: Catch players placing blocks inside the mine to prevent cheating the block counter
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMineBlockPlace(BlockPlaceEvent event) {
         Location loc = event.getBlock().getLocation();
-        String worldName = loc.getWorld().getName();
-        int x = loc.getBlockX();
-        int y = loc.getBlockY();
-        int z = loc.getBlockZ();
-
         for (Mine mine : plugin.getMineManager().getMines()) {
-            if (!mine.getWorldName().equals(worldName)) continue;
+            if (!mine.getWorldName().equals(loc.getWorld().getName())) continue;
 
-            if (x >= mine.getMinX() && x <= mine.getMaxX() &&
-                    y >= mine.getMinY() && y <= mine.getMaxY() &&
-                    z >= mine.getMinZ() && z <= mine.getMaxZ()) {
+            if (loc.getBlockX() >= mine.getMinX() && loc.getBlockX() <= mine.getMaxX() &&
+                    loc.getBlockY() >= mine.getMinY() && loc.getBlockY() <= mine.getMaxY() &&
+                    loc.getBlockZ() >= mine.getMinZ() && loc.getBlockZ() <= mine.getMaxZ()) {
 
-                // Assign hidden metadata tag to the placed block
                 event.getBlock().setMetadata("pmx_placed", new FixedMetadataValue(plugin, true));
                 return;
             }
@@ -50,19 +43,14 @@ public class MineListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMineBlockBreak(BlockBreakEvent event) {
         Location loc = event.getBlock().getLocation();
-        String worldName = loc.getWorld().getName();
-        int x = loc.getBlockX();
-        int y = loc.getBlockY();
-        int z = loc.getBlockZ();
 
         for (Mine mine : plugin.getMineManager().getMines()) {
-            if (!mine.getWorldName().equals(worldName)) continue;
+            if (!mine.getWorldName().equals(loc.getWorld().getName())) continue;
 
-            if (x >= mine.getMinX() && x <= mine.getMaxX() &&
-                    y >= mine.getMinY() && y <= mine.getMaxY() &&
-                    z >= mine.getMinZ() && z <= mine.getMaxZ()) {
+            if (loc.getBlockX() >= mine.getMinX() && loc.getBlockX() <= mine.getMaxX() &&
+                    loc.getBlockY() >= mine.getMinY() && loc.getBlockY() <= mine.getMaxY() &&
+                    loc.getBlockZ() >= mine.getMinZ() && loc.getBlockZ() <= mine.getMaxZ()) {
 
-                // If the block was placed by a player, ignore it and remove the tag
                 if (event.getBlock().hasMetadata("pmx_placed")) {
                     event.getBlock().removeMetadata("pmx_placed", plugin);
                     return;
@@ -75,7 +63,13 @@ public class MineListener implements Listener {
                 }
 
                 if (mine.isActionbarEnabled()) {
-                    String msg = "§b§l" + mine.getName() + " §8| §e" + mine.getMinedBlocks() + "§7/§e" + mine.getTotalBlocks() + " §7Mined §8| §c" + TimeUtil.formatTime(mine.getTimeUntilReset());
+                    String msg = plugin.getConfig().getString("actionbar-format", "&b&l%mine% &8| &e%mined%&7/&e%total% &7Mined &8| &c%time%")
+                            .replace("%mine%", mine.getName())
+                            .replace("%mined%", String.valueOf(mine.getMinedBlocks()))
+                            .replace("%total%", String.valueOf(mine.getTotalBlocks()))
+                            .replace("%time%", TimeUtil.formatTime(mine.getTimeUntilReset()))
+                            .replace("&", "§");
+
                     for (Player p : loc.getWorld().getPlayers()) {
                         if (p.getLocation().distanceSquared(loc) <= 2500) {
                             p.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(msg));

@@ -1,9 +1,11 @@
 # ========================================== #
-#             PrisonMinesX Core              #
+#             PrisonMinesX Config            #
 # ========================================== #
 
+# The type of storage to use.
+# Options: YAML, MYSQL, SQLITE
 storage:
-  type: "YAML" # Options: YAML, MYSQL, SQLITE
+  type: "YAML"
   mysql:
     host: "localhost"
     port: 3306
@@ -13,11 +15,31 @@ storage:
     use-ssl: false
 
 settings:
-  protect-mine-regions: true
-  teleport-on-reset: true
-  # Auto-reset when the mine reaches this percentage of blocks REMAINING. (-1.0 to disable)
+  # The default auto-reset percentage for newly created mines.
+  # When the blocks remaining drops below this %, the mine resets.
+  # Set to -1.0 to disable percent-resets globally by default.
   default-reset-percentage: 20.0
 
-gui:
-  main-menu-title: "&8PrisonMinesX - Active Mines"
-  edit-menu-title: "&8Editing Mine: &b%mine%"
+  # The default reset delay (in seconds) for newly created mines.
+  default-reset-delay: 600
+
+# ========================================== #
+#              Visual Formats                #
+# ========================================== #
+
+hologram-format:
+  # Placeholders: %mine%, %paused%
+  line-1: "&b&l%mine% Mine %paused%"
+  # Placeholders: %mined%, %total%, %percent%
+  line-2: "&e%mined%/%total% Blocks Mined &7(&a%percent%% Left&7)"
+  # Placeholders: %time%
+  line-3: "&7Resets in &c%time%"
+
+  # The string injected into %paused% when the mine is stopped
+  paused-placeholder: "&7(PAUSED)"
+
+  # The flash message that overrides Line 3 for 3 seconds on manual reset
+  forced-reset-line: "&a&lMine was Forcibly reset"
+
+# Placeholders: %mine%, %mined%, %total%, %percent%, %time%
+actionbar-format: "&b&l%mine% &8| &e%mined%&7/&e%total% &7Mined &8| &c%time%"

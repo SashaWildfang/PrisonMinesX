@@ -29,21 +29,19 @@ public class MineCommand implements CommandExecutor {
 
     private final PrisonMinesX plugin;
 
-    public MineCommand(PrisonMinesX plugin) {
-        this.plugin = plugin;
-    }
+    public MineCommand(PrisonMinesX plugin) { this.plugin = plugin; }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage("§cOnly players can manage mines.");
+            sender.sendMessage(getMsg("commands.player-only"));
             return true;
         }
 
         Player player = (Player) sender;
 
         if (!player.hasPermission("prisonmines.admin")) {
-            player.sendMessage(getMsg("prefix") + getMsg("no-permission"));
+            player.sendMessage(getMsg("prefix") + getMsg("commands.no-permission"));
             return true;
         }
 
@@ -71,20 +69,18 @@ public class MineCommand implements CommandExecutor {
                 }
 
                 if (plugin.getMineManager().getMines().isEmpty()) {
-                    player.sendMessage(getMsg("prefix") + "§cThere are no active mines! Use /pmines create <name> to create one.");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.no-mines"));
                     return true;
                 }
                 MineGUI.openMainMenu(player, plugin, 1);
                 break;
 
             case "list":
-                int listPage = args.length > 1 ? parsePage(args[1]) : 1;
-                handleList(player, listPage);
+                handleList(player, args.length > 1 ? parsePage(args[1]) : 1);
                 break;
 
             case "timers":
-                int timerPage = args.length > 1 ? parsePage(args[1]) : 1;
-                handleTimers(player, timerPage);
+                handleTimers(player, args.length > 1 ? parsePage(args[1]) : 1);
                 break;
 
             case "reload":
@@ -94,15 +90,13 @@ public class MineCommand implements CommandExecutor {
 
             case "start":
                 if (args.length < 2) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines start <name|all>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.start"));
                     return true;
                 }
-
                 if (plugin.getMineManager().getMines().isEmpty()) {
-                    player.sendMessage(getMsg("prefix") + "§cThere are no active mines to start!");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.no-mines"));
                     return true;
                 }
-
                 if (args[1].equalsIgnoreCase("all")) {
                     int startedCount = 0;
                     for (Mine m : plugin.getMineManager().getMines()) {
@@ -112,7 +106,7 @@ public class MineCommand implements CommandExecutor {
                             startedCount++;
                         }
                     }
-                    player.sendMessage(getMsg("prefix") + "§aSuccessfully started/unpaused §e" + startedCount + " §amines.");
+                    player.sendMessage(getMsg("prefix") + getMsg("admin.started-all").replace("%count%", String.valueOf(startedCount)));
                     return true;
                 }
 
@@ -132,12 +126,11 @@ public class MineCommand implements CommandExecutor {
 
             case "stop":
                 if (args.length < 2) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines stop <name|all>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.stop"));
                     return true;
                 }
-
                 if (plugin.getMineManager().getMines().isEmpty()) {
-                    player.sendMessage(getMsg("prefix") + "§cThere are no active mines to stop!");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.no-mines"));
                     return true;
                 }
 
@@ -150,7 +143,7 @@ public class MineCommand implements CommandExecutor {
                             stoppedCount++;
                         }
                     }
-                    player.sendMessage(getMsg("prefix") + "§cSuccessfully stopped/paused §e" + stoppedCount + " §cmines.");
+                    player.sendMessage(getMsg("prefix") + getMsg("admin.stopped-all").replace("%count%", String.valueOf(stoppedCount)));
                     return true;
                 }
 
@@ -170,7 +163,7 @@ public class MineCommand implements CommandExecutor {
 
             case "flags":
                 if (args.length < 2) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines flags <name>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.flags"));
                     return true;
                 }
                 Mine flagsMine = plugin.getMineManager().getMine(args[1]);
@@ -178,12 +171,12 @@ public class MineCommand implements CommandExecutor {
                     player.sendMessage(getMsg("prefix") + getMsg("mine.does-not-exist"));
                     return true;
                 }
-                MineGUI.openFlagsMenu(player, flagsMine);
+                MineGUI.openFlagsMenu(player, flagsMine, plugin);
                 break;
 
             case "info":
                 if (args.length < 2) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines info <name>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.info"));
                     return true;
                 }
                 Mine infoMine = plugin.getMineManager().getMine(args[1]);
@@ -191,54 +184,59 @@ public class MineCommand implements CommandExecutor {
                     player.sendMessage(getMsg("prefix") + getMsg("mine.does-not-exist"));
                     return true;
                 }
-                player.sendMessage("§8§m----------------------------------------");
-                player.sendMessage("§b§lMine Info: §f" + infoMine.getName());
-                player.sendMessage("§7Status: " + (infoMine.isPaused() ? "§cPaused" : "§aRunning"));
-                player.sendMessage("§7World: §f" + infoMine.getWorldName());
-                player.sendMessage("§7Blocks Remaining: §f" + String.format("%.1f", infoMine.getPercentRemaining()) + "%");
+                for (String line : plugin.getMessages().getStringList("info-format")) {
+                    String status = infoMine.isPaused() ? getMsg("formats.paused") : getMsg("formats.running");
+                    String fill = infoMine.isFillMode() ? getMsg("formats.enabled") : getMsg("formats.disabled");
+                    String holo = infoMine.isHologramEnabled() ? getMsg("formats.enabled") : getMsg("formats.disabled");
+                    String pct = infoMine.getResetPercentage() == -1.0 ? getMsg("formats.default") : infoMine.getResetPercentage() + "%";
 
-                player.sendMessage("§7Flags:");
-                player.sendMessage("  §8- §7Reset Delay: §e" + TimeUtil.formatTime(infoMine.getResetDelay()));
-                player.sendMessage("  §8- §7Percent Reset: §e" + (infoMine.getResetPercentage() == -1.0 ? "Default" : infoMine.getResetPercentage() + "%"));
-                player.sendMessage("  §8- §7Fill Mode: " + (infoMine.isFillMode() ? "§aEnabled" : "§cDisabled"));
-                player.sendMessage("  §8- §7Hologram: " + (infoMine.isHologramEnabled() ? "§aEnabled" : "§cDisabled"));
-
-                player.sendMessage("§7Composition:");
-
-                if (infoMine.getComposition().isEmpty()) {
-                    player.sendMessage("  §8- §cNone (Mine is empty)");
-                } else {
-                    for (Map.Entry<String, Double> entry : infoMine.getComposition().entrySet()) {
-                        player.sendMessage("  §8- §a" + formatName(entry.getKey()) + " §7(§e" + entry.getValue() + "%§7)");
+                    if (line.contains("%composition%")) {
+                        if (infoMine.getComposition().isEmpty()) {
+                            player.sendMessage(getMsg("formats.comp-empty"));
+                        } else {
+                            for (Map.Entry<String, Double> entry : infoMine.getComposition().entrySet()) {
+                                player.sendMessage(getMsg("formats.comp-entry")
+                                        .replace("%block%", formatName(entry.getKey()))
+                                        .replace("%chance%", String.valueOf(entry.getValue())));
+                            }
+                        }
+                        continue;
                     }
+
+                    player.sendMessage(line.replace("&", "§")
+                            .replace("%mine%", infoMine.getName())
+                            .replace("%status%", status)
+                            .replace("%world%", infoMine.getWorldName())
+                            .replace("%blocks_left%", String.format("%.1f", infoMine.getPercentRemaining()))
+                            .replace("%delay%", TimeUtil.formatTime(infoMine.getResetDelay()))
+                            .replace("%percent%", pct)
+                            .replace("%fill%", fill)
+                            .replace("%hologram%", holo));
                 }
-                player.sendMessage("§8§m----------------------------------------");
                 break;
 
             case "tp":
                 if (args.length < 2) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines tp <name>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.tp"));
                     return true;
                 }
                 Mine tpMine = plugin.getMineManager().getMine(args[1]);
                 if (tpMine != null) {
                     org.bukkit.Location loc = tpMine.getTpLocation();
-
                     if (loc == null) {
                         org.bukkit.World w = org.bukkit.Bukkit.getWorld(tpMine.getWorldName());
                         if (w != null) {
-                            double x = tpMine.getMinX() + (tpMine.getMaxX() - tpMine.getMinX()) / 2.0;
-                            double y = tpMine.getMaxY() + 1.0;
-                            double z = tpMine.getMinZ() + (tpMine.getMaxZ() - tpMine.getMinZ()) / 2.0;
-                            loc = new org.bukkit.Location(w, x, y, z);
+                            loc = new org.bukkit.Location(w,
+                                    tpMine.getMinX() + (tpMine.getMaxX() - tpMine.getMinX()) / 2.0,
+                                    tpMine.getMaxY() + 1.0,
+                                    tpMine.getMinZ() + (tpMine.getMaxZ() - tpMine.getMinZ()) / 2.0);
                         }
                     }
-
                     if (loc != null) {
                         player.teleport(loc);
-                        player.sendMessage(getMsg("prefix") + "§7You were teleported to §e" + tpMine.getName() + "§7.");
+                        player.sendMessage(getMsg("prefix") + getMsg("mine.teleported").replace("%mine%", tpMine.getName()));
                     } else {
-                        player.sendMessage(getMsg("prefix") + "§cCannot teleport: World not found.");
+                        player.sendMessage(getMsg("prefix") + getMsg("commands.tp-failed"));
                     }
                 } else {
                     player.sendMessage(getMsg("prefix") + getMsg("mine.does-not-exist"));
@@ -247,7 +245,7 @@ public class MineCommand implements CommandExecutor {
 
             case "set":
                 if (args.length < 4) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines set <mine> <block> <percent>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.set"));
                     return true;
                 }
                 Mine setMine = plugin.getMineManager().getMine(args[1]);
@@ -257,53 +255,50 @@ public class MineCommand implements CommandExecutor {
                 }
                 Material mat = Material.matchMaterial(args[2].toUpperCase());
                 if (mat == null || !mat.isBlock()) {
-                    player.sendMessage(getMsg("prefix") + "§cInvalid block material.");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.invalid-block"));
                     return true;
                 }
-
                 if (setMine.getComposition().containsKey(mat.name())) {
-                    player.sendMessage(getMsg("prefix") + "§c" + formatName(mat.name()) + " is already in the mine!");
-                    player.sendMessage(getMsg("prefix") + "§eIf you want to edit its percentage, please use the GUI or unset it first.");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.block-exists").replace("%block%", formatName(mat.name())));
                     return true;
                 }
 
                 try {
                     double chance = Double.parseDouble(args[3]);
                     if (chance == 0) {
-                        player.sendMessage(getMsg("prefix") + "§cYou cannot add a new block at 0%.");
+                        player.sendMessage(getMsg("prefix") + getMsg("commands.cannot-add-zero"));
                         return true;
                     }
 
-                    double currentTotal = 0;
-                    for (Map.Entry<String, Double> entry : setMine.getComposition().entrySet()) {
-                        if (!entry.getKey().equals(mat.name())) currentTotal += entry.getValue();
-                    }
-
+                    double currentTotal = setMine.getComposition().entrySet().stream().filter(e -> !e.getKey().equals(mat.name())).mapToDouble(Map.Entry::getValue).sum();
                     if (currentTotal + chance > 100.0) {
                         double maxAllowed = 100.0 - currentTotal;
                         if (maxAllowed <= 0.001) {
-                            player.sendMessage(getMsg("prefix") + "§cThe mine is full! You must unset or lower other percentages first.");
+                            player.sendMessage(getMsg("prefix") + getMsg("commands.mine-full"));
                         } else {
-                            player.sendMessage(getMsg("prefix") + "§cCannot set to " + chance + "%. The mine would exceed 100%.");
-                            player.sendMessage(getMsg("prefix") + "§eMaximum available percentage to allocate is §a" + String.format("%.2f", maxAllowed) + "%§e.");
+                            player.sendMessage(getMsg("prefix") + getMsg("commands.exceeds-100").replace("%chance%", String.valueOf(chance)));
+                            player.sendMessage(getMsg("prefix") + getMsg("commands.max-allowed").replace("%max%", String.format("%.2f", maxAllowed)));
                         }
                         return true;
                     }
 
                     setMine.addComposition(mat.name(), chance);
                     plugin.getMineManager().addMine(setMine);
-                    double freePercent = 100.0 - (currentTotal + chance);
-                    player.sendMessage(getMsg("prefix") + "§aAdded §e" + formatName(mat.name()) + " §aat §e" + chance + "% §ato §e" + setMine.getName() + "§a.");
-                    player.sendMessage(getMsg("prefix") + "§7(Remaining free space: §a" + String.format("%.2f", freePercent) + "%§7)");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.block-added")
+                            .replace("%block%", formatName(mat.name()))
+                            .replace("%chance%", String.valueOf(chance))
+                            .replace("%mine%", setMine.getName()));
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.free-space")
+                            .replace("%free%", String.format("%.2f", 100.0 - (currentTotal + chance))));
 
                 } catch (NumberFormatException e) {
-                    player.sendMessage(getMsg("prefix") + "§cPercentage must be a valid number.");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.invalid-number"));
                 }
                 break;
 
             case "unset":
                 if (args.length < 3) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines unset <mine> <block|all>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.unset"));
                     return true;
                 }
                 Mine unsetMine = plugin.getMineManager().getMine(args[1]);
@@ -314,22 +309,22 @@ public class MineCommand implements CommandExecutor {
                 if (args[2].equalsIgnoreCase("all")) {
                     unsetMine.getComposition().clear();
                     plugin.getMineManager().addMine(unsetMine);
-                    player.sendMessage(getMsg("prefix") + "§aCleared all blocks from §e" + unsetMine.getName() + "§a.");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.cleared-all").replace("%mine%", unsetMine.getName()));
                 } else {
                     String targetMat = args[2].toUpperCase();
                     unsetMine.getComposition().remove(targetMat);
                     plugin.getMineManager().addMine(unsetMine);
-                    player.sendMessage(getMsg("prefix") + "§aRemoved §e" + formatName(targetMat) + " §afrom §e" + unsetMine.getName() + "§a.");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.block-removed").replace("%block%", formatName(targetMat)).replace("%mine%", unsetMine.getName()));
                 }
                 break;
 
             case "create":
                 if (args.length < 2) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines create <name>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.create"));
                     return true;
                 }
                 if (args[1].length() > 16) {
-                    player.sendMessage(getMsg("prefix") + "§cMine names cannot exceed 16 characters!");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.name-too-long"));
                     return true;
                 }
                 createMine(player, args[1]);
@@ -337,7 +332,7 @@ public class MineCommand implements CommandExecutor {
 
             case "redefine":
                 if (args.length < 2) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines redefine <name>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.redefine"));
                     return true;
                 }
                 Mine redefMine = plugin.getMineManager().getMine(args[1]);
@@ -351,7 +346,7 @@ public class MineCommand implements CommandExecutor {
                 try {
                     rSel = rs.getSelection(BukkitAdapter.adapt(player.getWorld()));
                 } catch (IncompleteRegionException e) {
-                    player.sendMessage(getMsg("prefix") + "§cYou must make a complete WorldEdit selection first!");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.we-selection"));
                     return true;
                 }
 
@@ -361,7 +356,7 @@ public class MineCommand implements CommandExecutor {
                 Mine tempRedef = new Mine("temp", player.getWorld().getName(), rMin.getBlockX(), rMin.getBlockY(), rMin.getBlockZ(), rMax.getBlockX(), rMax.getBlockY(), rMax.getBlockZ());
                 for (Mine existing : plugin.getMineManager().getMines()) {
                     if (!existing.getName().equalsIgnoreCase(redefMine.getName()) && existing.intersects(tempRedef)) {
-                        player.sendMessage(getMsg("prefix") + "§cRedefine failed! This region intersects with existing mine: §e" + existing.getName());
+                        player.sendMessage(getMsg("prefix") + getMsg("commands.intersects").replace("%mine%", existing.getName()));
                         return true;
                     }
                 }
@@ -374,6 +369,7 @@ public class MineCommand implements CommandExecutor {
                 redefMine.setMaxY(rMax.getBlockY());
                 redefMine.setMaxZ(rMax.getBlockZ());
 
+                plugin.getHologramManager().removeHologram(redefMine.getName(), redefMine);
                 redefMine.calculateTotalBlocks();
                 plugin.getMineManager().addMine(redefMine);
                 plugin.getMineManager().resetMine(redefMine.getName(), true);
@@ -383,20 +379,15 @@ public class MineCommand implements CommandExecutor {
 
             case "delete":
                 if (args.length < 2) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines delete <name>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.delete"));
                     return true;
                 }
                 Mine delMine = plugin.getMineManager().getMine(args[1]);
                 if (delMine != null) {
-
-                    // FIX: Safe Deletion Wipe! Clears composition and tells MineManager to reset it
                     delMine.getComposition().clear();
-                    plugin.getMineManager().addMine(delMine); // Save empty state
-                    plugin.getMineManager().resetMine(delMine.getName(), false); // Cleanly wipes to Air
-
-                    // Proceed with standard deletion
+                    plugin.getMineManager().addMine(delMine);
+                    plugin.getMineManager().resetMine(delMine.getName(), false);
                     plugin.getMineManager().deleteMine(args[1]);
-
                     player.sendMessage(getMsg("prefix") + getMsg("admin.deleted").replace("%mine%", args[1]));
                 } else {
                     player.sendMessage(getMsg("prefix") + getMsg("mine.does-not-exist"));
@@ -405,7 +396,7 @@ public class MineCommand implements CommandExecutor {
 
             case "reset":
                 if (args.length < 2) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines reset <name>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.reset"));
                     return true;
                 }
                 if (plugin.getMineManager().getMine(args[1]) != null) {
@@ -418,7 +409,7 @@ public class MineCommand implements CommandExecutor {
 
             case "setspawn":
                 if (args.length < 2) {
-                    player.sendMessage(getMsg("prefix") + "§cUsage: /pmines setspawn <name>");
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.setspawn"));
                     return true;
                 }
                 Mine mineToTp = plugin.getMineManager().getMine(args[1]);
@@ -432,7 +423,7 @@ public class MineCommand implements CommandExecutor {
                 break;
 
             default:
-                player.sendMessage(getMsg("prefix") + getMsg("invalid-args"));
+                player.sendMessage(getMsg("prefix") + getMsg("commands.invalid-args"));
                 break;
         }
         return true;
@@ -445,7 +436,7 @@ public class MineCommand implements CommandExecutor {
     private void handleList(Player player, int page) {
         List<Mine> mines = new ArrayList<>(plugin.getMineManager().getMines());
         if (mines.isEmpty()) {
-            player.sendMessage(getMsg("prefix") + "§cThere are no active mines!");
+            player.sendMessage(getMsg("prefix") + getMsg("commands.no-mines"));
             return;
         }
         mines.sort((m1, m2) -> m1.getName().compareToIgnoreCase(m2.getName()));
@@ -454,32 +445,32 @@ public class MineCommand implements CommandExecutor {
         if (totalPages == 0) totalPages = 1;
 
         if (page > totalPages || page < 1) {
-            player.sendMessage(getMsg("prefix") + "§cInvalid page number. Max pages is " + totalPages + ".");
+            player.sendMessage(getMsg("prefix") + getMsg("commands.invalid-page").replace("%max%", String.valueOf(totalPages)));
             return;
         }
 
-        player.sendMessage("§8§m----------------------------------------");
-        player.sendMessage("§a§lShowing " + mines.size() + " Mine(s) §7(Page " + page + "/" + totalPages + ")");
+        player.sendMessage(getMsg("formats.list-header"));
+        player.sendMessage(getMsg("formats.list-title").replace("%count%", String.valueOf(mines.size())).replace("%page%", String.valueOf(page)).replace("%max%", String.valueOf(totalPages)));
 
         int start = (page - 1) * 10;
         int end = Math.min(start + 10, mines.size());
 
         for (int i = start; i < end; i++) {
             Mine m = mines.get(i);
-            TextComponent mineComp = new TextComponent(" §8- §e" + m.getName() + " §7(World: " + m.getWorldName() + ")");
+            TextComponent mineComp = new TextComponent(getMsg("formats.list-entry").replace("%mine%", m.getName()).replace("%world%", m.getWorldName()));
 
-            StringBuilder hoverText = new StringBuilder("§b§l" + m.getName() + " Info:\n");
-            hoverText.append("§7Status: ").append(m.isPaused() ? "§cPaused" : "§aRunning").append("\n");
-            hoverText.append("§7Next Reset: §e").append(TimeUtil.formatTime(m.getTimeUntilReset())).append("\n\n");
-            hoverText.append("§b§lComposition:\n");
+            StringBuilder hoverText = new StringBuilder(getMsg("formats.hover-title").replace("%mine%", m.getName()) + "\n");
+            hoverText.append(getMsg("formats.hover-status").replace("%status%", m.isPaused() ? getMsg("formats.paused") : getMsg("formats.running"))).append("\n");
+            hoverText.append(getMsg("formats.hover-reset").replace("%time%", TimeUtil.formatTime(m.getTimeUntilReset()))).append("\n\n");
+            hoverText.append(getMsg("formats.hover-comp-title")).append("\n");
 
-            if (m.getComposition().isEmpty()) hoverText.append("§cNone (Mine is empty)\n");
+            if (m.getComposition().isEmpty()) hoverText.append(getMsg("formats.comp-empty")).append("\n");
             else {
                 for (Map.Entry<String, Double> entry : m.getComposition().entrySet()) {
-                    hoverText.append("§8- §a").append(formatName(entry.getKey())).append(" §7(§e").append(entry.getValue()).append("%§7)\n");
+                    hoverText.append(getMsg("formats.comp-entry").replace("%block%", formatName(entry.getKey())).replace("%chance%", String.valueOf(entry.getValue()))).append("\n");
                 }
             }
-            hoverText.append("\n§eClick to teleport to mine.");
+            hoverText.append("\n").append(getMsg("formats.hover-click"));
 
             mineComp.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder(hoverText.toString()).create()));
             mineComp.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/pmines tp " + m.getName()));
@@ -488,16 +479,15 @@ public class MineCommand implements CommandExecutor {
 
         if (page < totalPages) {
             player.sendMessage("");
-            player.sendMessage("§eType /pmines list " + (page + 1) + " to go to next page");
+            player.sendMessage(getMsg("formats.list-next-page").replace("%next%", String.valueOf(page + 1)));
         }
-
-        player.sendMessage("§8§m----------------------------------------");
+        player.sendMessage(getMsg("formats.list-footer"));
     }
 
     private void handleTimers(Player player, int page) {
         List<Mine> mines = new ArrayList<>(plugin.getMineManager().getMines());
         if (mines.isEmpty()) {
-            player.sendMessage(getMsg("prefix") + "§cThere are no active mines!");
+            player.sendMessage(getMsg("prefix") + getMsg("commands.no-mines"));
             return;
         }
         mines.sort(Comparator.comparingInt(Mine::getTimeUntilReset));
@@ -506,21 +496,21 @@ public class MineCommand implements CommandExecutor {
         if (totalPages == 0) totalPages = 1;
 
         if (page > totalPages || page < 1) {
-            player.sendMessage(getMsg("prefix") + "§cInvalid page number. Max pages is " + totalPages + ".");
+            player.sendMessage(getMsg("prefix") + getMsg("commands.invalid-page").replace("%max%", String.valueOf(totalPages)));
             return;
         }
 
-        player.sendMessage("§8§m----------------------------------------");
-        player.sendMessage("§b§lMine Timers §7(Page " + page + "/" + totalPages + ")");
+        player.sendMessage(getMsg("formats.timers-header"));
+        player.sendMessage(getMsg("formats.timers-title").replace("%page%", String.valueOf(page)).replace("%max%", String.valueOf(totalPages)));
 
         int start = (page - 1) * 10;
         int end = Math.min(start + 10, mines.size());
 
         for (int i = start; i < end; i++) {
             Mine m = mines.get(i);
-            player.sendMessage(" §8- §e" + m.getName() + " §7- Resets in §a" + TimeUtil.formatTime(m.getTimeUntilReset()));
+            player.sendMessage(getMsg("formats.timers-entry").replace("%mine%", m.getName()).replace("%time%", TimeUtil.formatTime(m.getTimeUntilReset())));
         }
-        player.sendMessage("§8§m----------------------------------------");
+        player.sendMessage(getMsg("formats.timers-footer"));
     }
 
     private void sendHelp(Player player) {
@@ -529,7 +519,7 @@ public class MineCommand implements CommandExecutor {
 
     private void createMine(Player player, String mineName) {
         if (plugin.getMineManager().getMine(mineName) != null) {
-            player.sendMessage(getMsg("prefix") + "§cA mine with that name already exists!");
+            player.sendMessage(getMsg("prefix") + getMsg("commands.mine-exists"));
             return;
         }
 
@@ -538,7 +528,7 @@ public class MineCommand implements CommandExecutor {
         try {
             selection = session.getSelection(BukkitAdapter.adapt(player.getWorld()));
         } catch (IncompleteRegionException e) {
-            player.sendMessage(getMsg("prefix") + "§cYou must make a complete WorldEdit selection first!");
+            player.sendMessage(getMsg("prefix") + getMsg("commands.we-selection"));
             return;
         }
 
@@ -548,7 +538,7 @@ public class MineCommand implements CommandExecutor {
         Mine tempCheck = new Mine("temp", player.getWorld().getName(), min.getBlockX(), min.getBlockY(), min.getBlockZ(), max.getBlockX(), max.getBlockY(), max.getBlockZ());
         for (Mine existing : plugin.getMineManager().getMines()) {
             if (existing.intersects(tempCheck)) {
-                player.sendMessage(getMsg("prefix") + "§cCreation failed! This region intersects with the existing mine: §e" + existing.getName());
+                player.sendMessage(getMsg("prefix") + getMsg("commands.intersects").replace("%mine%", existing.getName()));
                 return;
             }
         }
@@ -559,10 +549,10 @@ public class MineCommand implements CommandExecutor {
         player.sendMessage(getMsg("prefix") + getMsg("admin.created").replace("%mine%", mineName));
     }
 
-    private String getMsg(String path) { return plugin.getMessages().getString(path, "").replace("&", "§"); }
+    private String getMsg(String path) { return plugin.getMessages().getString(path, "&cMissing: " + path).replace("&", "§"); }
 
     public static String formatName(String name) {
-        if (name == null) return "";
+        if (name == null) return "None";
         String[] words = name.toLowerCase().split("_");
         StringBuilder sb = new StringBuilder();
         for (String word : words) {

@@ -14,26 +14,31 @@ public class GUIListener implements Listener {
 
     private final PrisonMinesX plugin;
 
-    public GUIListener(PrisonMinesX plugin) {
-        this.plugin = plugin;
+    public GUIListener(PrisonMinesX plugin) { this.plugin = plugin; }
+
+    private String getMsg(String path) {
+        return plugin.getMessages().getString(path, "").replace("&", "§");
     }
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         String title = event.getView().getTitle();
 
-        if (title.startsWith("§8PrisonMinesX") || title.startsWith("§8Editing:") ||
-                title.startsWith("§8Flags:") || title.startsWith("§8Blocks:") || title.startsWith("§8Mines - ")) {
+        String mainBase = getMsg("gui.main.title").split("%count%")[0];
+        String editBase = getMsg("gui.edit.title").split("%mine%")[0];
+        String flagsBase = getMsg("gui.flags.title").split("%mine%")[0];
+        String blocksBase = getMsg("gui.blocks.title").split("%mine%")[0];
+
+        if (title.startsWith(mainBase) || title.startsWith(editBase) || title.startsWith(flagsBase) || title.startsWith(blocksBase)) {
 
             event.setCancelled(true);
             if (event.getCurrentItem() == null) return;
-
             Player player = (Player) event.getWhoClicked();
 
             if (event.getClickedInventory() != null && event.getClickedInventory().equals(event.getView().getBottomInventory())) {
                 if (event.getCurrentItem().getType() == Material.AIR) return;
 
-                if (title.startsWith("§8Flags: ") && ChatListener.promptMap.containsKey(player.getUniqueId())) {
+                if (title.startsWith(flagsBase) && ChatListener.promptMap.containsKey(player.getUniqueId())) {
                     String[] data = ChatListener.promptMap.get(player.getUniqueId()).split(":");
                     if (data.length > 1 && data[2].equals("displayitem")) {
                         Mine mine = plugin.getMineManager().getMine(data[0]);
@@ -41,16 +46,16 @@ public class GUIListener implements Listener {
                             mine.setDisplayItem(event.getCurrentItem().getType().name());
                             plugin.getMineManager().addMine(mine);
                             ChatListener.promptMap.remove(player.getUniqueId());
-                            player.sendMessage(plugin.getMessages().getString("prefix").replace("&", "§") + "§aDisplay item set!");
-                            MineGUI.openFlagsMenu(player, mine);
+                            player.sendMessage(getMsg("prefix") + getMsg("prompts.icon-set"));
+                            MineGUI.openFlagsMenu(player, mine, plugin);
                         }
                     }
                     return;
                 }
 
-                if (title.startsWith("§8Blocks: ")) {
+                if (title.startsWith(blocksBase)) {
                     if (event.getCurrentItem().getType().isBlock()) {
-                        String mineName = title.replace("§8Blocks: §b", "");
+                        String mineName = ChatColor.stripColor(title).replace(ChatColor.stripColor(blocksBase), "").trim();
                         Mine mine = plugin.getMineManager().getMine(mineName);
                         if (mine == null) return;
 
@@ -58,16 +63,15 @@ public class GUIListener implements Listener {
                         String niceName = com.sasha.prisonminesx.commands.MineCommand.formatName(material);
 
                         if (mine.getComposition().containsKey(material)) {
-                            player.sendMessage(plugin.getMessages().getString("prefix").replace("&", "§") + "§c" + niceName + " is already in the mine!");
-                            player.sendMessage(plugin.getMessages().getString("prefix").replace("&", "§") + "§eIf you want to edit its percentage, please click it in the top GUI menu.");
+                            player.sendMessage(getMsg("prefix") + getMsg("commands.block-exists").replace("%block%", niceName));
                             return;
                         }
 
                         player.closeInventory();
                         ChatListener.promptMap.put(player.getUniqueId(), mineName + ":block:" + material);
-                        player.sendMessage("§eType the percentage to set for §a" + niceName + " §e(0-100) in chat, or type 'cancel'.");
+                        player.sendMessage(getMsg("prompts.enter-percent").replace("%block%", niceName));
                     } else {
-                        player.sendMessage("§cYou can only add solid blocks to a mine!");
+                        player.sendMessage(getMsg("prefix") + getMsg("commands.invalid-block"));
                     }
                     return;
                 }
@@ -77,135 +81,111 @@ public class GUIListener implements Listener {
             if (!event.getCurrentItem().hasItemMeta() || event.getCurrentItem().getItemMeta().getDisplayName() == null) return;
             String itemName = event.getCurrentItem().getItemMeta().getDisplayName();
 
-            if (title.startsWith("§8Mines - ")) {
-                if (itemName.equals("§aNext Page")) {
-                    int page = Integer.parseInt(title.split("Pg ")[1].replace(")", "").trim());
+            if (title.startsWith(mainBase)) {
+                if (itemName.equals(getMsg("gui.main.next-page"))) {
+                    int page = Integer.parseInt(ChatColor.stripColor(title).split("Pg ")[1].replace(")", "").trim());
                     MineGUI.openMainMenu(player, plugin, page + 1);
-                } else if (itemName.equals("§cPrevious Page")) {
-                    int page = Integer.parseInt(title.split("Pg ")[1].replace(")", "").trim());
+                } else if (itemName.equals(getMsg("gui.main.prev-page"))) {
+                    int page = Integer.parseInt(ChatColor.stripColor(title).split("Pg ")[1].replace(")", "").trim());
                     MineGUI.openMainMenu(player, plugin, page - 1);
-                } else if (itemName.startsWith("§b§lMine: §f")) {
-                    String mineName = ChatColor.stripColor(itemName).replace("Mine: ", "");
+                } else if (itemName.startsWith(getMsg("gui.main.mine-name").split("%mine%")[0])) {
+                    String cleanTitle = ChatColor.stripColor(itemName);
+                    String cleanPrefix = ChatColor.stripColor(getMsg("gui.main.mine-name").split("%mine%")[0]);
+                    String mineName = cleanTitle.replace(cleanPrefix, "").trim();
+
                     Mine mine = plugin.getMineManager().getMine(mineName);
-                    if (mine != null) {
-                        MineGUI.openEditMenu(player, mine, plugin);
-                    }
+                    if (mine != null) MineGUI.openEditMenu(player, mine, plugin);
                 }
             }
-            else if (title.startsWith("§8Editing: ")) {
-                String mineName = title.replace("§8Editing: §b", "");
+            else if (title.startsWith(editBase)) {
+                String mineName = ChatColor.stripColor(title).replace(ChatColor.stripColor(editBase), "").trim();
                 Mine mine = plugin.getMineManager().getMine(mineName);
-                if (mine == null) {
-                    player.closeInventory();
-                    return;
-                }
+                if (mine == null) { player.closeInventory(); return; }
 
-                if (itemName.equals("§6Edit Flags")) {
-                    MineGUI.openFlagsMenu(player, mine);
-                } else if (itemName.equals("§cBack to Mines")) {
+                if (itemName.equals(getMsg("gui.edit.flags"))) {
+                    MineGUI.openFlagsMenu(player, mine, plugin);
+                } else if (itemName.equals(getMsg("gui.edit.back"))) {
                     MineGUI.openMainMenu(player, plugin, 1);
-                } else if (itemName.equals("§aSet Teleport Location")) {
+                } else if (itemName.equals(getMsg("gui.edit.teleport"))) {
                     mine.setTpLocation(player.getLocation());
                     plugin.getMineManager().addMine(mine);
-                    player.sendMessage(plugin.getMessages().getString("prefix").replace("&", "§") + "§aTeleport location set.");
+                    player.sendMessage(getMsg("prefix") + getMsg("admin.tp-set").replace("%mine%", mineName));
                     player.closeInventory();
-                } else if (itemName.equals("§eForce Reset")) {
-                    plugin.getMineManager().resetMine(mineName, true); // Triggers forced flash
-                    player.sendMessage(plugin.getMessages().getString("prefix").replace("&", "§") + "§aMine reset forced.");
-                } else if (itemName.equals("§cDelete Mine")) {
+                } else if (itemName.equals(getMsg("gui.edit.delete"))) {
                     if (event.isShiftClick() && event.isRightClick()) {
-
-                        // FIX: Safe Deletion Wipe!
                         mine.getComposition().clear();
                         plugin.getMineManager().addMine(mine);
                         plugin.getMineManager().resetMine(mineName, false);
-
                         plugin.getMineManager().deleteMine(mineName);
-
-                        player.sendMessage(plugin.getMessages().getString("prefix").replace("&", "§") + "§cMine deleted.");
+                        player.sendMessage(getMsg("prefix") + getMsg("admin.deleted").replace("%mine%", mineName));
                         player.closeInventory();
                     } else {
-                        player.sendMessage("§cYou must Shift-Right-Click to delete a mine!");
+                        player.sendMessage(getMsg("prefix") + getMsg("commands.shift-right-delete"));
                     }
-                } else if (itemName.equals("§bEdit Block Composition")) {
-                    MineGUI.openBlockEditor(player, mine);
+                } else if (itemName.equals(getMsg("gui.edit.blocks"))) {
+                    MineGUI.openBlockEditor(player, mine, plugin);
                 }
             }
-            else if (title.startsWith("§8Flags: ")) {
-                String mineName = title.replace("§8Flags: §b", "");
+            else if (title.startsWith(flagsBase)) {
+                String mineName = ChatColor.stripColor(title).replace(ChatColor.stripColor(flagsBase), "").trim();
                 Mine mine = plugin.getMineManager().getMine(mineName);
                 if (mine == null) return;
 
-                if (itemName.equals("§cGo Back")) {
-                    MineGUI.openEditMenu(player, mine, plugin);
+                if (itemName.equals(getMsg("gui.flags.back"))) { MineGUI.openEditMenu(player, mine, plugin); return; }
+
+                if (itemName.equals(getMsg("gui.flags.fillmode"))) { mine.setFillMode(!mine.isFillMode()); }
+                else if (itemName.equals(getMsg("gui.flags.silent"))) { mine.setSilent(!mine.isSilent()); }
+                else if (itemName.equals(getMsg("gui.flags.tp-reset"))) { mine.setTeleportOnReset(!mine.isTeleportOnReset()); }
+                else if (itemName.equals(getMsg("gui.flags.actionbar"))) { mine.setActionbarEnabled(!mine.isActionbarEnabled()); }
+                else if (itemName.equals(getMsg("gui.flags.warn-global"))) { mine.setWarnGlobal(!mine.isWarnGlobal()); }
+                else if (itemName.equals(getMsg("gui.flags.pause"))) { mine.setPaused(!mine.isPaused()); }
+                else if (itemName.equals(getMsg("gui.flags.hologram"))) {
+                    mine.setHologramEnabled(!mine.isHologramEnabled());
+                    plugin.getHologramManager().updateHologram(mine);
+                }
+
+                if (itemName.startsWith(getMsg("gui.flags.fillmode")) || itemName.startsWith(getMsg("gui.flags.silent")) ||
+                        itemName.startsWith(getMsg("gui.flags.tp-reset")) || itemName.startsWith(getMsg("gui.flags.actionbar")) ||
+                        itemName.startsWith(getMsg("gui.flags.warn-global")) || itemName.startsWith(getMsg("gui.flags.pause")) ||
+                        itemName.startsWith(getMsg("gui.flags.hologram"))) {
+                    plugin.getMineManager().addMine(mine);
+                    MineGUI.openFlagsMenu(player, mine, plugin);
                     return;
                 }
 
-                if (itemName.equals("§6Fill Mode")) {
-                    mine.setFillMode(!mine.isFillMode());
-                    plugin.getMineManager().addMine(mine);
-                    MineGUI.openFlagsMenu(player, mine);
-                } else if (itemName.equals("§6Silent Reset")) {
-                    mine.setSilent(!mine.isSilent());
-                    plugin.getMineManager().addMine(mine);
-                    MineGUI.openFlagsMenu(player, mine);
-                } else if (itemName.equals("§6Teleport on Reset")) {
-                    mine.setTeleportOnReset(!mine.isTeleportOnReset());
-                    plugin.getMineManager().addMine(mine);
-                    MineGUI.openFlagsMenu(player, mine);
-                } else if (itemName.equals("§6Hologram")) {
-                    mine.setHologramEnabled(!mine.isHologramEnabled());
-                    plugin.getMineManager().addMine(mine);
-                    plugin.getHologramManager().updateHologram(mine);
-                    MineGUI.openFlagsMenu(player, mine);
-                } else if (itemName.equals("§6Actionbar Notifs")) {
-                    mine.setActionbarEnabled(!mine.isActionbarEnabled());
-                    plugin.getMineManager().addMine(mine);
-                    MineGUI.openFlagsMenu(player, mine);
-                } else if (itemName.equals("§6Warning Broadcast")) {
-                    mine.setWarnGlobal(!mine.isWarnGlobal());
-                    plugin.getMineManager().addMine(mine);
-                    MineGUI.openFlagsMenu(player, mine);
-                } else if (itemName.equals("§6Stop Resetting")) {
-                    mine.setPaused(!mine.isPaused());
-                    plugin.getMineManager().addMine(mine);
-                    MineGUI.openFlagsMenu(player, mine);
-                }
-
-                else if (itemName.equals("§dSet Display Item")) {
+                if (itemName.equals(getMsg("gui.flags.icon"))) {
                     ChatListener.promptMap.put(player.getUniqueId(), mineName + ":flag:displayitem");
-                    player.sendMessage("§ePlease click an item in your inventory below to set it as the display item.");
-                } else if (itemName.equals("§eReset Delay")) {
+                    player.sendMessage(getMsg("prompts.click-inv-icon"));
+                } else if (itemName.equals(getMsg("gui.flags.delay"))) {
                     player.closeInventory();
                     ChatListener.promptMap.put(player.getUniqueId(), mineName + ":flag:delay");
-                    player.sendMessage("§eType the new Reset Delay (e.g. 10m or 1h 20m 4s), or type 'cancel'.");
-                } else if (itemName.equals("§eReset Warnings")) {
+                    player.sendMessage(getMsg("prompts.enter-delay"));
+                } else if (itemName.equals(getMsg("gui.flags.warnings"))) {
                     player.closeInventory();
                     ChatListener.promptMap.put(player.getUniqueId(), mineName + ":flag:warnings");
-                    player.sendMessage("§eType the warnings in minutes separated by commas (e.g. 10,5,1), or type 'cancel'.");
-                } else if (itemName.equals("§eSurface Block")) {
+                    player.sendMessage(getMsg("prompts.enter-warnings"));
+                } else if (itemName.equals(getMsg("gui.flags.surface"))) {
                     player.closeInventory();
                     ChatListener.promptMap.put(player.getUniqueId(), mineName + ":flag:surface");
-                    player.sendMessage("§eType the Material name for the surface (or 'air' to clear), or type 'cancel'.");
-                } else if (itemName.equals("§ePercent Reset")) {
+                    player.sendMessage(getMsg("prompts.enter-surface"));
+                } else if (itemName.equals(getMsg("gui.flags.percent"))) {
                     player.closeInventory();
                     ChatListener.promptMap.put(player.getUniqueId(), mineName + ":flag:percent");
-                    player.sendMessage("§eType the percentage for auto-reset (0-100), or type 'cancel'.");
+                    player.sendMessage(getMsg("prompts.enter-percent-reset"));
                 }
             }
-            else if (title.startsWith("§8Blocks: ")) {
-                String mineName = title.replace("§8Blocks: §b", "");
+            else if (title.startsWith(blocksBase)) {
+                String mineName = ChatColor.stripColor(title).replace(ChatColor.stripColor(blocksBase), "").trim();
                 Mine mine = plugin.getMineManager().getMine(mineName);
                 if (mine == null) return;
 
-                if (event.getRawSlot() == 45 && event.getCurrentItem().getType() == Material.ARROW) {
+                if (event.getRawSlot() == 45 && itemName.equals(getMsg("gui.blocks.back"))) {
                     MineGUI.openEditMenu(player, mine, plugin);
                     return;
                 }
-
-                if (event.getRawSlot() == 53 && event.getCurrentItem().getType() == Material.GOLDEN_PICKAXE) {
-                    plugin.getMineManager().resetMine(mineName, true); // Triggers forced flash
-                    player.sendMessage(plugin.getMessages().getString("prefix").replace("&", "§") + "§aMine reset forced.");
+                if (event.getRawSlot() == 53 && itemName.equals(getMsg("gui.blocks.force-reset"))) {
+                    plugin.getMineManager().resetMine(mineName, true);
+                    player.sendMessage(getMsg("prefix") + getMsg("admin.forced-reset").replace("%mine%", mineName));
                     return;
                 }
 
@@ -216,14 +196,12 @@ public class GUIListener implements Listener {
                     if (event.isRightClick()) {
                         mine.getComposition().remove(material);
                         plugin.getMineManager().addMine(mine);
-                        player.sendMessage(plugin.getMessages().getString("prefix").replace("&", "§") + "§cRemoved " + niceName + " from " + mineName + ".");
-                        MineGUI.openBlockEditor(player, mine);
+                        player.sendMessage(getMsg("prefix") + getMsg("commands.block-removed").replace("%block%", niceName).replace("%mine%", mineName));
+                        MineGUI.openBlockEditor(player, mine, plugin);
                     } else if (event.isLeftClick()) {
-                        double currentPercent = mine.getComposition().getOrDefault(material, 0.0);
                         player.closeInventory();
                         ChatListener.promptMap.put(player.getUniqueId(), mineName + ":block:" + material);
-                        player.sendMessage("§eMine §b" + mineName + " §ecurrently contains §a" + currentPercent + "% " + niceName + "§e.");
-                        player.sendMessage("§eType the new percentage (0-100) in chat for " + niceName + ", or type 'cancel'.");
+                        player.sendMessage(getMsg("prompts.enter-percent").replace("%block%", niceName));
                     }
                 }
             }

@@ -35,8 +35,13 @@ public class MineTimerTask extends BukkitRunnable {
             mine.setTimeUntilReset(timeRemaining);
 
             if (mine.isActionbarEnabled()) {
-                sendRadiusMessage(mine, "§b§l" + mine.getName() + " §8| §e" + mine.getMinedBlocks() + "§7/§e" +
-                        mine.getTotalBlocks() + " §7Mined §8| §c" + TimeUtil.formatTime(timeRemaining), true);
+                String msg = plugin.getConfig().getString("actionbar-format", "&b&l%mine% &8| &e%mined%&7/&e%total% &7Mined &8| &c%time%")
+                        .replace("%mine%", mine.getName())
+                        .replace("%mined%", String.valueOf(mine.getMinedBlocks()))
+                        .replace("%total%", String.valueOf(mine.getTotalBlocks()))
+                        .replace("%time%", TimeUtil.formatTime(timeRemaining))
+                        .replace("&", "§");
+                sendRadiusMessage(mine, msg, true);
             }
 
             if (!mine.isSilent() && mine.getResetWarnings().contains(timeRemaining)) {

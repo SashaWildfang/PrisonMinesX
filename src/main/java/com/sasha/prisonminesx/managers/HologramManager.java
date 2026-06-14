@@ -46,38 +46,41 @@ public class HologramManager {
             if (stands == null) return;
         }
 
-        // Line 1: Dynamic Mine Title with Paused Status
-        String title = "§b§l" + mine.getName() + " Mine";
-        if (mine.isPaused()) {
-            title += " §7(PAUSED)";
-        }
-        stands.get(0).setCustomName(title);
+        String pausedFlag = mine.isPaused() ? plugin.getConfig().getString("hologram-format.paused-placeholder", "&7(PAUSED)") : "";
 
-        // Line 2: Blocks
-        int total = mine.getTotalBlocks();
-        int mined = mine.getMinedBlocks();
-        double percent = mine.getPercentRemaining();
-        stands.get(1).setCustomName("§e" + mined + "/" + total + " Blocks Mined §7(§a" + String.format("%.1f", percent) + "% Left§7)");
+        String l1 = plugin.getConfig().getString("hologram-format.line-1", "&b&l%mine% Mine %paused%")
+                .replace("%mine%", mine.getName())
+                .replace("%paused%", pausedFlag).replace("&", "§").trim();
+        stands.get(0).setCustomName(l1);
 
-        // Line 3: Resets In (FIXED: Added null check to prevent NPE on initial spawn)
-        String line3 = stands.get(2).getCustomName();
-        if (line3 == null || !line3.contains("Forcibly reset")) {
-            stands.get(2).setCustomName("§7Resets in §c" + TimeUtil.formatTime(mine.getTimeUntilReset()));
+        String l2 = plugin.getConfig().getString("hologram-format.line-2", "&e%mined%/%total% Blocks Mined &7(&a%percent%% Left&7)")
+                .replace("%mined%", String.valueOf(mine.getMinedBlocks()))
+                .replace("%total%", String.valueOf(mine.getTotalBlocks()))
+                .replace("%percent%", String.format("%.1f", mine.getPercentRemaining())).replace("&", "§");
+        stands.get(1).setCustomName(l2);
+
+        String l3 = stands.get(2).getCustomName();
+        String flashMsg = plugin.getConfig().getString("hologram-format.forced-reset-line", "&a&lMine was Forcibly reset").replace("&", "§");
+
+        if (l3 == null || !l3.equals(flashMsg)) {
+            stands.get(2).setCustomName(plugin.getConfig().getString("hologram-format.line-3", "&7Resets in &c%time%")
+                    .replace("%time%", TimeUtil.formatTime(mine.getTimeUntilReset())).replace("&", "§"));
         }
     }
 
-    // Flashes a manual reset message for 1 second, then reverts to the countdown
     public void flashForcedReset(Mine mine) {
         if (!mine.isHologramEnabled() || !mine.isSetup()) return;
         List<ArmorStand> stands = holograms.get(mine.getName());
+        String flashMsg = plugin.getConfig().getString("hologram-format.forced-reset-line", "&a&lMine was Forcibly reset").replace("&", "§");
 
         if (stands != null && stands.size() >= 3) {
-            stands.get(2).setCustomName("§a§lMine was Forcibly reset");
+            stands.get(2).setCustomName(flashMsg);
 
-            // Revert back to normal after 20 ticks (1 second)
+            // 3 seconds (60 ticks) as requested
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (mine.isHologramEnabled() && holograms.containsKey(mine.getName())) {
-                    stands.get(2).setCustomName("§7Resets in §c" + TimeUtil.formatTime(mine.getTimeUntilReset()));
+                    stands.get(2).setCustomName(plugin.getConfig().getString("hologram-format.line-3", "&7Resets in &c%time%")
+                            .replace("%time%", TimeUtil.formatTime(mine.getTimeUntilReset())).replace("&", "§"));
                 }
             }, 60L);
         }
