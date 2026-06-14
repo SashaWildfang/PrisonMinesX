@@ -1,15 +1,23 @@
-# ---------------------------------------------------------
-# Data Storage Settings
-# Options: YAML (Default), SQLITE, MYSQL
-# ---------------------------------------------------------
-storage:
-  type: "YAML"
+# ========================================== #
+#             PrisonMinesX Core              #
+# ========================================== #
 
-  # Only required if type is set to "MYSQL"
+storage:
+  type: "YAML" # Options: YAML, MYSQL, SQLITE
   mysql:
     host: "localhost"
     port: 3306
     database: "prisonminesx"
     username: "root"
-    password: "password"
+    password: ""
     use-ssl: false
+
+settings:
+  protect-mine-regions: true
+  teleport-on-reset: true
+  # Auto-reset when the mine reaches this percentage of blocks REMAINING. (-1.0 to disable)
+  default-reset-percentage: 20.0
+
+gui:
+  main-menu-title: "&8PrisonMinesX - Active Mines"
+  edit-menu-title: "&8Editing Mine: &b%mine%"

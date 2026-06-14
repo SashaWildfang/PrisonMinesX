@@ -6,8 +6,6 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class MineSerializer {
@@ -25,10 +23,19 @@ public class MineSerializer {
         config.set("bounds.maxY", mine.getMaxY());
         config.set("bounds.maxZ", mine.getMaxZ());
 
-        // Settings
+        // Settings (Updated to include Premium Flags)
+        config.set("settings.display-item", mine.getDisplayItem());
         config.set("settings.reset-delay", mine.getResetDelay());
         config.set("settings.reset-warnings", mine.getResetWarnings());
+        config.set("settings.reset-percentage", mine.getResetPercentage());
         config.set("settings.silent", mine.isSilent());
+        config.set("settings.fill-mode", mine.isFillMode());
+        config.set("settings.surface", mine.getSurface());
+        config.set("settings.teleport-on-reset", mine.isTeleportOnReset());
+        config.set("settings.hologram-enabled", mine.isHologramEnabled());
+        config.set("settings.actionbar-enabled", mine.isActionbarEnabled());
+        config.set("settings.warn-global", mine.isWarnGlobal());
+        config.set("settings.paused", mine.isPaused());
 
         // Teleport Location (Null-safe)
         if (mine.getTpLocation() != null) {
@@ -66,10 +73,19 @@ public class MineSerializer {
         // Instantiate the base mine
         Mine mine = new Mine(mineName, worldName, minX, minY, minZ, maxX, maxY, maxZ);
 
-        // Settings
-        mine.setResetDelay(config.getInt("settings.reset-delay", 0));
+        // Settings (Updated to include Premium Flags with safe defaults)
+        if (config.contains("settings.display-item")) mine.setDisplayItem(config.getString("settings.display-item"));
+        mine.setResetDelay(config.getInt("settings.reset-delay", 600));
         mine.setResetWarnings(config.getIntegerList("settings.reset-warnings"));
-        mine.setSilent(config.getBoolean("settings.silent", false));
+        if (config.contains("settings.reset-percentage")) mine.setResetPercentage(config.getDouble("settings.reset-percentage"));
+        mine.setSilent(config.getBoolean("settings.silent", true));
+        mine.setFillMode(config.getBoolean("settings.fill-mode", false));
+        if (config.contains("settings.surface")) mine.setSurface(config.getString("settings.surface"));
+        mine.setTeleportOnReset(config.getBoolean("settings.teleport-on-reset", true));
+        mine.setHologramEnabled(config.getBoolean("settings.hologram-enabled", false));
+        mine.setActionbarEnabled(config.getBoolean("settings.actionbar-enabled", false));
+        mine.setWarnGlobal(config.getBoolean("settings.warn-global", true));
+        mine.setPaused(config.getBoolean("settings.paused", false));
 
         // Teleport Location
         if (config.contains("teleport.x")) {

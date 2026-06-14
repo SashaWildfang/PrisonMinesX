@@ -1,0 +1,48 @@
+# ========================================== #
+#           PrisonMinesX Messages            #
+# ========================================== #
+
+prefix: "&8[&bPrisonMinesX&8] &7"
+no-permission: "&cYou do not have permission to do this."
+invalid-args: "&cInvalid arguments. Type /pmines help for commands."
+
+mine:
+  reset-broadcast: "&aThe mine &e%mine% &ahas been reset!"
+  reset-warning: "&eThe mine &c%mine% &ewill reset in &c%time%&e!"
+  teleported: "&7You were teleported to &e%mine%&7."
+  does-not-exist: "&cThat mine does not exist."
+
+admin:
+  created: "&aSuccessfully created mine &e%mine%&a."
+  deleted: "&cDeleted mine &e%mine%&c."
+  redefined: "&aSuccessfully redefined the boundaries for &e%mine%&a."
+  tp-set: "&aSuccessfully set the teleport location for &e%mine%&a."
+  forced-reset: "&aYou have forced a reset for &e%mine%&a."
+  started: "&aThe mine &e%mine% &ahas been started/unpaused."
+  already-started: "&cThe mine &e%mine% &cis already running."
+  stopped: "&cThe mine &e%mine% &chas been stopped/paused."
+  already-stopped: "&cThe mine &e%mine% &cis already stopped."
+  reloaded: "&aConfigurations and messages have been reloaded!"
+
+help:
+  - "&8&m----------------------------------------"
+  - "&b&lPrisonMinesX &7v1.0.0"
+  - ""
+  - "&e/pmines &7- Opens the Main GUI"
+  - "&e/pmines help &7- Shows this help menu"
+  - "&e/pmines gui &7- Opens the Main GUI"
+  - "&e/pmines list [page] &7- Lists all active mines"
+  - "&e/pmines timers [page] &7- Shows active reset timers"
+  - "&e/pmines info <name> &7- Shows info for a mine"
+  - "&e/pmines create <name> &7- Creates a mine from your WE selection"
+  - "&e/pmines redefine <name> &7- Redefines mine boundaries"
+  - "&e/pmines delete <name> &7- Deletes a mine"
+  - "&e/pmines reset <name> &7- Forces a mine reset"
+  - "&e/pmines flags <name> &7- Opens the flags GUI for a mine"
+  - "&e/pmines start <name> &7- Starts/unpauses a mine"
+  - "&e/pmines stop <name> &7- Stops/pauses a mine"
+  - "&e/pmines setspawn <name> &7- Sets the teleport point to your location"
+  - "&e/pmines set <mine> <block> <percent> &7- Sets block chance"
+  - "&e/pmines unset <mine> <block|all> &7- Removes blocks"
+  - "&e/pmines reload &7- Reloads config.yml and messages.yml"
+  - "&8&m----------------------------------------"

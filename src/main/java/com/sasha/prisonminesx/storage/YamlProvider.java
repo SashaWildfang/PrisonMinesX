@@ -2,6 +2,7 @@ package com.sasha.prisonminesx.storage;
 
 import com.sasha.prisonminesx.PrisonMinesX;
 import com.sasha.prisonminesx.models.Mine;
+import com.sasha.prisonminesx.utils.MineSerializer;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
@@ -42,9 +43,9 @@ public class YamlProvider implements StorageProvider {
             String mineName = file.getName().replace(".yml", "");
 
             try {
-                // We will build the MineSerializer next to handle this cleanly
-                // Mine mine = MineSerializer.deserializeFromYaml(mineName, config);
-                // loadedMines.put(mineName, mine);
+                // FIXED: Uncommented to actively load the mines!
+                Mine mine = MineSerializer.deserializeFromYaml(mineName, config);
+                loadedMines.put(mineName, mine);
             } catch (Exception e) {
                 plugin.getLogger().severe("Failed to load mine: " + mineName);
                 e.printStackTrace();
@@ -60,8 +61,8 @@ public class YamlProvider implements StorageProvider {
         File file = new File(minesFolder, mine.getName() + ".yml");
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
 
-        // We will pass the config to our serializer to populate it
-        // MineSerializer.serializeToYaml(mine, config);
+        // FIXED: Uncommented to actively serialize and save the configuration!
+        MineSerializer.serializeToYaml(mine, config);
 
         try {
             config.save(file);
