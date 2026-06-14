@@ -30,29 +30,36 @@ public class YamlProvider implements StorageProvider {
 
     @Override
     public Map<String, Mine> loadAllMines() {
+        return fetchMines(null);
+    }
+
+    @Override
+    public Map<String, Mine> loadMinesByWorld(String worldName) {
+        return fetchMines(worldName);
+    }
+
+    private Map<String, Mine> fetchMines(String targetWorld) {
         Map<String, Mine> loadedMines = new HashMap<>();
         File[] files = minesFolder.listFiles((dir, name) -> name.endsWith(".yml"));
 
-        if (files == null || files.length == 0) {
-            plugin.getLogger().info("No mines found in YAML storage.");
-            return loadedMines;
-        }
+        if (files == null || files.length == 0) return loadedMines;
 
         for (File file : files) {
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-            String mineName = file.getName().replace(".yml", "");
+            String world = config.getString("world");
 
-            try {
-                // FIXED: Uncommented to actively load the mines!
-                Mine mine = MineSerializer.deserializeFromYaml(mineName, config);
-                loadedMines.put(mineName, mine);
-            } catch (Exception e) {
-                plugin.getLogger().severe("Failed to load mine: " + mineName);
-                e.printStackTrace();
+            // PREMIUM FEATURE: Only load the mine if the world matches, or if we want ALL mines (null filter)
+            if (targetWorld == null || (world != null && world.equals(targetWorld))) {
+                String mineName = file.getName().replace(".yml", "");
+                try {
+                    Mine mine = MineSerializer.deserializeFromYaml(mineName, config);
+                    loadedMines.put(mineName, mine);
+                } catch (Exception e) {
+                    plugin.getLogger().severe("Failed to load mine: " + mineName);
+                    e.printStackTrace();
+                }
             }
         }
-
-        plugin.getLogger().info("Successfully loaded " + loadedMines.size() + " mines from YAML.");
         return loadedMines;
     }
 
@@ -60,14 +67,10 @@ public class YamlProvider implements StorageProvider {
     public void saveMine(Mine mine) {
         File file = new File(minesFolder, mine.getName() + ".yml");
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-
-        // FIXED: Uncommented to actively serialize and save the configuration!
         MineSerializer.serializeToYaml(mine, config);
-
         try {
             config.save(file);
         } catch (IOException e) {
-            plugin.getLogger().severe("Could not save mine file: " + mine.getName());
             e.printStackTrace();
         }
     }
@@ -75,9 +78,7 @@ public class YamlProvider implements StorageProvider {
     @Override
     public void deleteMine(String mineName) {
         File file = new File(minesFolder, mineName + ".yml");
-        if (file.exists()) {
-            file.delete();
-        }
+        if (file.exists()) file.delete();
     }
 
     @Override

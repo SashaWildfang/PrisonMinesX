@@ -1,9 +1,11 @@
 package com.sasha.prisonminesx.utils;
 
+import com.sasha.prisonminesx.PrisonMinesX;
 import com.sasha.prisonminesx.models.Mine;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.function.mask.BlockTypeMask;
 import com.sk89q.worldedit.function.pattern.Pattern;
 import com.sk89q.worldedit.function.pattern.RandomPattern;
 import com.sk89q.worldedit.math.BlockVector3;
@@ -13,33 +15,80 @@ import com.sk89q.worldedit.world.block.BlockTypes;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.Map;
 
 public class FAWEResetEngine {
 
-    public static void resetMineAsync(Mine mine) {
+    public static void resetMineLayered(PrisonMinesX plugin, Mine mine) {
         World bukkitWorld = Bukkit.getWorld(mine.getWorldName());
         if (bukkitWorld == null) return;
 
         com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(bukkitWorld);
-        BlockVector3 min = BlockVector3.at(mine.getMinX(), mine.getMinY(), mine.getMinZ());
-        BlockVector3 max = BlockVector3.at(mine.getMaxX(), mine.getMaxY(), mine.getMaxZ());
-        Region region = new CuboidRegion(weWorld, min, max);
-
         Pattern compositionPattern = buildPattern(mine.getComposition());
+        boolean isEmpty = (compositionPattern == null);
 
-        // FastMode is set to FALSE so Air blocks actively overwrite existing physical blocks
-        try (EditSession editSession = WorldEdit.getInstance().newEditSessionBuilder()
-                .world(weWorld)
-                .fastMode(false)
-                .build()) {
+        int minY = mine.getMinY();
+        int maxY = mine.getMaxY();
+        int layersPerTick = 10; // Process 10 Y-levels per tick to prevent TPS drops
 
-            editSession.setBlocks(region, compositionPattern);
-            editSession.flushSession();
+        new BukkitRunnable() {
+            int currentY = minY;
 
-        } catch (Exception e) {
-            e.printStackTrace();
+            @Override
+            public void run() {
+                if (currentY > maxY) {
+                    // Apply surface block on the very last tick after filling is done
+                    if (mine.getSurface() != null) {
+                        applySurface(weWorld, mine);
+                    }
+                    this.cancel();
+                    return;
+                }
+
+                int chunkMaxY = Math.min(currentY + layersPerTick - 1, maxY);
+                BlockVector3 min = BlockVector3.at(mine.getMinX(), currentY, mine.getMinZ());
+                BlockVector3 max = BlockVector3.at(mine.getMaxX(), chunkMaxY, mine.getMaxZ());
+                Region chunkRegion = new CuboidRegion(weWorld, min, max);
+
+                try (EditSession editSession = WorldEdit.getInstance().newEditSessionBuilder()
+                        .world(weWorld)
+                        .fastMode(!isEmpty) // Keep fast mode OFF if wiping to Air
+                        .build()) {
+
+                    if (mine.isFillMode()) {
+                        editSession.setMask(new BlockTypeMask(editSession.getExtent(), BlockTypes.AIR));
+                    }
+
+                    if (isEmpty) {
+                        editSession.setBlocks(chunkRegion, BlockTypes.AIR.getDefaultState());
+                    } else {
+                        editSession.setBlocks(chunkRegion, compositionPattern);
+                    }
+                    editSession.flushSession();
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                currentY += layersPerTick; // Move up for the next tick
+            }
+        }.runTaskTimerAsynchronously(plugin, 0L, 1L); // Run every 1 tick
+    }
+
+    private static void applySurface(com.sk89q.worldedit.world.World weWorld, Mine mine) {
+        Material surfaceMat = Material.matchMaterial(mine.getSurface());
+        if (surfaceMat != null) {
+            BlockVector3 surfaceMin = BlockVector3.at(mine.getMinX(), mine.getMaxY(), mine.getMinZ());
+            BlockVector3 surfaceMax = BlockVector3.at(mine.getMaxX(), mine.getMaxY(), mine.getMaxZ());
+            Region surfaceRegion = new CuboidRegion(weWorld, surfaceMin, surfaceMax);
+
+            try (EditSession editSession = WorldEdit.getInstance().newEditSessionBuilder().world(weWorld).fastMode(true).build()) {
+                editSession.setMask(null);
+                editSession.setBlocks(surfaceRegion, BukkitAdapter.asBlockType(surfaceMat).getDefaultState());
+                editSession.flushSession();
+            }
         }
     }
 

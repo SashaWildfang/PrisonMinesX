@@ -10,11 +10,7 @@ import java.util.Map;
 
 public class MineSerializer {
 
-    /**
-     * Converts a Mine object into raw YAML data.
-     */
     public static void serializeToYaml(Mine mine, ConfigurationSection config) {
-        // Core & Boundaries
         config.set("world", mine.getWorldName());
         config.set("bounds.minX", mine.getMinX());
         config.set("bounds.minY", mine.getMinY());
@@ -23,7 +19,6 @@ public class MineSerializer {
         config.set("bounds.maxY", mine.getMaxY());
         config.set("bounds.maxZ", mine.getMaxZ());
 
-        // Settings (Updated to include Premium Flags)
         config.set("settings.display-item", mine.getDisplayItem());
         config.set("settings.reset-delay", mine.getResetDelay());
         config.set("settings.reset-warnings", mine.getResetWarnings());
@@ -37,7 +32,9 @@ public class MineSerializer {
         config.set("settings.warn-global", mine.isWarnGlobal());
         config.set("settings.paused", mine.isPaused());
 
-        // Teleport Location (Null-safe)
+        config.set("analytics.lifetime-mined", mine.getLifetimeMinedBlocks());
+        config.set("analytics.lifetime-resets", mine.getLifetimeResets());
+
         if (mine.getTpLocation() != null) {
             Location loc = mine.getTpLocation();
             config.set("teleport.x", loc.getX());
@@ -47,8 +44,7 @@ public class MineSerializer {
             config.set("teleport.pitch", loc.getPitch());
         }
 
-        // Composition
-        config.set("composition", null); // Wipe the old composition section
+        config.set("composition", null);
         if (mine.getComposition() != null && !mine.getComposition().isEmpty()) {
             for (Map.Entry<String, Double> entry : mine.getComposition().entrySet()) {
                 config.set("composition." + entry.getKey(), entry.getValue());
@@ -56,13 +52,9 @@ public class MineSerializer {
         }
     }
 
-    /**
-     * Rebuilds a Mine object from raw YAML data.
-     */
     public static Mine deserializeFromYaml(String mineName, ConfigurationSection config) {
         String worldName = config.getString("world");
 
-        // Boundaries
         int minX = config.getInt("bounds.minX");
         int minY = config.getInt("bounds.minY");
         int minZ = config.getInt("bounds.minZ");
@@ -70,10 +62,8 @@ public class MineSerializer {
         int maxY = config.getInt("bounds.maxY");
         int maxZ = config.getInt("bounds.maxZ");
 
-        // Instantiate the base mine
         Mine mine = new Mine(mineName, worldName, minX, minY, minZ, maxX, maxY, maxZ);
 
-        // Settings (Updated to include Premium Flags with safe defaults)
         if (config.contains("settings.display-item")) mine.setDisplayItem(config.getString("settings.display-item"));
         mine.setResetDelay(config.getInt("settings.reset-delay", 600));
         mine.setResetWarnings(config.getIntegerList("settings.reset-warnings"));
@@ -87,7 +77,9 @@ public class MineSerializer {
         mine.setWarnGlobal(config.getBoolean("settings.warn-global", true));
         mine.setPaused(config.getBoolean("settings.paused", false));
 
-        // Teleport Location
+        mine.setLifetimeMinedBlocks(config.getLong("analytics.lifetime-mined", 0));
+        mine.setLifetimeResets(config.getInt("analytics.lifetime-resets", 0));
+
         if (config.contains("teleport.x")) {
             World world = Bukkit.getWorld(worldName);
             double x = config.getDouble("teleport.x");
@@ -99,7 +91,6 @@ public class MineSerializer {
             mine.setTpLocation(new Location(world, x, y, z, yaw, pitch));
         }
 
-        // Composition
         ConfigurationSection compSection = config.getConfigurationSection("composition");
         if (compSection != null) {
             for (String blockMaterial : compSection.getKeys(false)) {

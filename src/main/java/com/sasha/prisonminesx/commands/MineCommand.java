@@ -18,8 +18,10 @@ import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -40,17 +42,26 @@ public class MineCommand implements CommandExecutor {
 
         Player player = (Player) sender;
 
-        if (!player.hasPermission("prisonmines.admin")) {
+        if (!player.hasPermission("prisonminesx.cmd.pmine") && !player.hasPermission("prisonminesx.admin")) {
             player.sendMessage(getMsg("prefix") + getMsg("commands.no-permission"));
             return true;
         }
 
         if (args.length == 0) {
-            sendHelp(player);
+            if (player.hasPermission("prisonminesx.admin") || player.hasPermission("prisonminesx.cmd.help")) {
+                sendHelp(player);
+            } else {
+                player.sendMessage(getMsg("prefix") + getMsg("commands.no-permission"));
+            }
             return true;
         }
 
         String subCommand = args[0].toLowerCase();
+
+        if (!player.hasPermission("prisonminesx.admin") && !player.hasPermission("prisonminesx.cmd." + subCommand)) {
+            player.sendMessage(getMsg("prefix") + getMsg("commands.no-permission"));
+            return true;
+        }
 
         switch (subCommand) {
             case "help":
@@ -81,6 +92,28 @@ public class MineCommand implements CommandExecutor {
 
             case "timers":
                 handleTimers(player, args.length > 1 ? parsePage(args[1]) : 1);
+                break;
+
+            case "stats":
+                if (plugin.getMineManager().getMines().isEmpty()) {
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.no-mines"));
+                    return true;
+                }
+                player.sendMessage(getMsg("formats.stats-header"));
+                player.sendMessage(getMsg("formats.stats-title"));
+
+                for (Mine m : plugin.getMineManager().getMines()) {
+                    long totalMined = m.getLifetimeMinedBlocks();
+                    int totalResets = m.getLifetimeResets();
+                    double avgPerReset = totalResets == 0 ? totalMined : (double) totalMined / totalResets;
+
+                    player.sendMessage(getMsg("formats.stats-entry")
+                            .replace("%mine%", m.getName())
+                            .replace("%mined%", String.valueOf(totalMined))
+                            .replace("%resets%", String.valueOf(totalResets))
+                            .replace("%avg%", String.format("%.1f", avgPerReset)));
+                }
+                player.sendMessage(getMsg("formats.stats-footer"));
                 break;
 
             case "reload":
@@ -361,6 +394,15 @@ public class MineCommand implements CommandExecutor {
                     }
                 }
 
+                File historyFolder = new File(plugin.getDataFolder(), "history");
+                if (!historyFolder.exists()) historyFolder.mkdirs();
+                File backupFile = new File(historyFolder, redefMine.getName() + "_" + System.currentTimeMillis() + ".yml");
+                YamlConfiguration backupConfig = new YamlConfiguration();
+                com.sasha.prisonminesx.utils.MineSerializer.serializeToYaml(redefMine, backupConfig);
+                try { backupConfig.save(backupFile); } catch (Exception ignored) {}
+
+                redefMine.savePreviousBounds();
+
                 redefMine.setWorldName(player.getWorld().getName());
                 redefMine.setMinX(rMin.getBlockX());
                 redefMine.setMinY(rMin.getBlockY());
@@ -375,6 +417,30 @@ public class MineCommand implements CommandExecutor {
                 plugin.getMineManager().resetMine(redefMine.getName(), true);
 
                 player.sendMessage(getMsg("prefix") + getMsg("admin.redefined").replace("%mine%", redefMine.getName()));
+                break;
+
+            case "undo":
+                if (args.length < 2) {
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.undo"));
+                    return true;
+                }
+                Mine undoMine = plugin.getMineManager().getMine(args[1]);
+                if (undoMine == null) {
+                    player.sendMessage(getMsg("prefix") + getMsg("mine.does-not-exist"));
+                    return true;
+                }
+                if (!undoMine.hasPreviousBounds()) {
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.no-undo"));
+                    return true;
+                }
+
+                plugin.getHologramManager().removeHologram(undoMine.getName(), undoMine);
+                undoMine.restorePreviousBounds();
+                undoMine.calculateTotalBlocks();
+                plugin.getMineManager().addMine(undoMine);
+                plugin.getMineManager().resetMine(undoMine.getName(), true);
+
+                player.sendMessage(getMsg("prefix") + getMsg("admin.undone").replace("%mine%", undoMine.getName()));
                 break;
 
             case "delete":
@@ -544,6 +610,7 @@ public class MineCommand implements CommandExecutor {
         }
 
         Mine newMine = new Mine(mineName, player.getWorld().getName(), min.getBlockX(), min.getBlockY(), min.getBlockZ(), max.getBlockX(), max.getBlockY(), max.getBlockZ());
+
         plugin.getMineManager().addMine(newMine);
         newMine.calculateTotalBlocks();
         player.sendMessage(getMsg("prefix") + getMsg("admin.created").replace("%mine%", mineName));

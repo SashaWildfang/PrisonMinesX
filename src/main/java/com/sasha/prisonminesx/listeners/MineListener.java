@@ -57,6 +57,7 @@ public class MineListener implements Listener {
                 }
 
                 mine.incrementMinedBlocks();
+                mine.incrementLifetimeMinedBlocks(); // Track Analytics
 
                 if (mine.isHologramEnabled()) {
                     plugin.getHologramManager().updateHologram(mine);

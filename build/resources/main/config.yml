@@ -2,8 +2,8 @@
 #             PrisonMinesX Config            #
 # ========================================== #
 
-# The type of storage to use.
-# Options: YAML, MYSQL, SQLITE
+# Database Configuration
+# Supported storage types: YAML, MYSQL, SQLITE
 storage:
   type: "YAML"
   mysql:
@@ -14,32 +14,38 @@ storage:
     password: ""
     use-ssl: false
 
+# Global Default Settings for New Mines
 settings:
-  # The default auto-reset percentage for newly created mines.
-  # When the blocks remaining drops below this %, the mine resets.
-  # Set to -1.0 to disable percent-resets globally by default.
+  # The percentage of blocks remaining that will trigger an automatic reset.
+  # (e.g., 20.0 means the mine resets when 80% of it has been mined).
+  # Set to -1.0 to disable percentage-based resets by default.
   default-reset-percentage: 20.0
 
-  # The default reset delay (in seconds) for newly created mines.
+  # The time (in seconds) between automatic timer resets.
+  # (e.g., 600 seconds = 10 minutes).
   default-reset-delay: 600
 
 # ========================================== #
 #              Visual Formats                #
 # ========================================== #
+# Color Theme: &9 (Blue), &3 (Dark Aqua), &b (Aqua), &7 (Gray), &8 (Dark Gray)
 
 hologram-format:
-  # Placeholders: %mine%, %paused%
-  line-1: "&b&l%mine% Mine %paused%"
-  # Placeholders: %mined%, %total%, %percent%
-  line-2: "&e%mined%/%total% Blocks Mined &7(&a%percent%% Left&7)"
-  # Placeholders: %time%
-  line-3: "&7Resets in &c%time%"
+  # Available Placeholders: %mine%, %paused%
+  line-1: "&9&l%mine% Mine %paused%"
 
-  # The string injected into %paused% when the mine is stopped
-  paused-placeholder: "&7(PAUSED)"
+  # Available Placeholders: %mined%, %total%, %percent%
+  line-2: "&b%mined%&8/&b%total% &7Blocks Mined &8(&b%percent%% &7Left&8)"
 
-  # The flash message that overrides Line 3 for 3 seconds on manual reset
-  forced-reset-line: "&a&lMine was Forcibly reset"
+  # Available Placeholders: %time%
+  line-3: "&7Resets in &b%time%"
 
-# Placeholders: %mine%, %mined%, %total%, %percent%, %time%
-actionbar-format: "&b&l%mine% &8| &e%mined%&7/&e%total% &7Mined &8| &c%time%"
+  # Text appended to Line 1 when the mine's reset timer is paused.
+  paused-placeholder: "&8(&cPAUSED&8)"
+
+  # The temporary text that flashes on Line 3 when an admin forces a reset.
+  forced-reset-line: "&3&lMine was forcibly reset!"
+
+# The format for the Actionbar notification sent to players inside the mine.
+# Available Placeholders: %mine%, %mined%, %total%, %percent%, %time%
+actionbar-format: "&9&l%mine% &8| &b%mined%&8/&b%total% &7Mined &8| &7Resets in: &b%time%"

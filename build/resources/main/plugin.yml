@@ -6,8 +6,7 @@ author: SashaTheSnep
 description: Advanced prison mines system
 
 depend: [FastAsyncWorldEdit]
-
-softdepend: []
+softdepend: [PlaceholderAPI]
 
 commands:
   prisonmines:
@@ -15,10 +14,37 @@ commands:
     aliases: [pmines]
 
 permissions:
-  prisonmines.admin:
-    description: Allows full access to PrisonMinesX admin commands
+  prisonminesx.admin:
+    description: Allows full access to all PrisonMinesX commands
     default: op
+    children:
+      prisonminesx.*: true
 
-  prisonmines.use:
-    description: Allows basic use of prison mines features
+  prisonminesx.*:
+    description: Wildcard granting all PrisonMinesX permissions
+    default: op
+    children:
+      prisonminesx.cmd.pmine: true
+      prisonminesx.cmd.help: true
+      prisonminesx.cmd.gui: true
+      prisonminesx.cmd.list: true
+      prisonminesx.cmd.timers: true
+      prisonminesx.cmd.stats: true
+      prisonminesx.cmd.reload: true
+      prisonminesx.cmd.start: true
+      prisonminesx.cmd.stop: true
+      prisonminesx.cmd.flags: true
+      prisonminesx.cmd.info: true
+      prisonminesx.cmd.tp: true
+      prisonminesx.cmd.set: true
+      prisonminesx.cmd.unset: true
+      prisonminesx.cmd.create: true
+      prisonminesx.cmd.redefine: true
+      prisonminesx.cmd.undo: true
+      prisonminesx.cmd.delete: true
+      prisonminesx.cmd.reset: true
+      prisonminesx.cmd.setspawn: true
+
+  prisonminesx.cmd.pmine:
+    description: Allows access to the base /pmines command
     default: true

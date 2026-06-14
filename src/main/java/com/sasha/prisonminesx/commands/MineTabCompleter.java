@@ -16,9 +16,9 @@ public class MineTabCompleter implements TabCompleter {
 
     private final PrisonMinesX plugin;
     private final List<String> commands = Arrays.asList(
-            "help", "gui", "create", "delete", "reset",
+            "help", "gui", "create", "delete", "reset", "undo",
             "setspawn", "list", "info", "tp", "set", "unset",
-            "timers", "redefine", "start", "stop", "reload", "flags"
+            "timers", "redefine", "start", "stop", "reload", "flags", "stats"
     );
 
     public MineTabCompleter(PrisonMinesX plugin) {
@@ -28,14 +28,23 @@ public class MineTabCompleter implements TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> completions = new ArrayList<>();
-        if (!sender.hasPermission("prisonmines.admin")) return completions;
+
+        if (!sender.hasPermission("prisonminesx.cmd.pmine") && !sender.hasPermission("prisonminesx.admin")) {
+            return completions;
+        }
 
         if (args.length == 1) {
-            StringUtil.copyPartialMatches(args[0], commands, completions);
+            List<String> allowedCommands = new ArrayList<>();
+            for (String cmd : commands) {
+                if (sender.hasPermission("prisonminesx.admin") || sender.hasPermission("prisonminesx.cmd." + cmd)) {
+                    allowedCommands.add(cmd);
+                }
+            }
+            StringUtil.copyPartialMatches(args[0], allowedCommands, completions);
         }
         else if (args.length == 2) {
             String subCmd = args[0].toLowerCase();
-            if (Arrays.asList("delete", "reset", "setspawn", "info", "tp", "set", "unset", "redefine", "start", "stop", "flags", "gui").contains(subCmd)) {
+            if (Arrays.asList("delete", "reset", "setspawn", "info", "tp", "set", "unset", "redefine", "start", "stop", "flags", "gui", "undo").contains(subCmd)) {
                 List<String> mineNames = new ArrayList<>();
                 for (Mine mine : plugin.getMineManager().getMines()) {
                     mineNames.add(mine.getName());

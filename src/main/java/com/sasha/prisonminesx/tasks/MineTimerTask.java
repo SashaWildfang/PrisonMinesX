@@ -25,29 +25,13 @@ public class MineTimerTask extends BukkitRunnable {
 
             if (mine.isPaused() || mine.getResetDelay() <= 0) continue;
 
-            int timeRemaining = mine.getTimeUntilReset() - 1;
+            // FIX: Evaluate warnings BEFORE subtracting the second
+            int currentSeconds = mine.getTimeUntilReset();
 
-            if (timeRemaining <= 0) {
-                plugin.getMineManager().resetMine(mine.getName());
-                continue;
-            }
-
-            mine.setTimeUntilReset(timeRemaining);
-
-            if (mine.isActionbarEnabled()) {
-                String msg = plugin.getConfig().getString("actionbar-format", "&b&l%mine% &8| &e%mined%&7/&e%total% &7Mined &8| &c%time%")
-                        .replace("%mine%", mine.getName())
-                        .replace("%mined%", String.valueOf(mine.getMinedBlocks()))
-                        .replace("%total%", String.valueOf(mine.getTotalBlocks()))
-                        .replace("%time%", TimeUtil.formatTime(timeRemaining))
-                        .replace("&", "§");
-                sendRadiusMessage(mine, msg, true);
-            }
-
-            if (!mine.isSilent() && mine.getResetWarnings().contains(timeRemaining)) {
+            if (!mine.isSilent() && mine.getResetWarnings().contains(currentSeconds)) {
                 String warningMsg = plugin.getMessages().getString("mine.reset-warning")
                         .replace("%mine%", mine.getName())
-                        .replace("%time%", TimeUtil.formatTime(timeRemaining))
+                        .replace("%time%", TimeUtil.formatTime(currentSeconds))
                         .replace("&", "§");
 
                 if (mine.isWarnGlobal()) {
@@ -55,6 +39,26 @@ public class MineTimerTask extends BukkitRunnable {
                 } else {
                     sendRadiusMessage(mine, warningMsg, false);
                 }
+            }
+
+            // Progress the timer
+            currentSeconds--;
+
+            if (currentSeconds <= 0) {
+                plugin.getMineManager().resetMine(mine.getName());
+                continue;
+            }
+
+            mine.setTimeUntilReset(currentSeconds);
+
+            if (mine.isActionbarEnabled()) {
+                String msg = plugin.getConfig().getString("actionbar-format", "&b&l%mine% &8| &e%mined%&7/&e%total% &7Mined &8| &c%time%")
+                        .replace("%mine%", mine.getName())
+                        .replace("%mined%", String.valueOf(mine.getMinedBlocks()))
+                        .replace("%total%", String.valueOf(mine.getTotalBlocks()))
+                        .replace("%time%", TimeUtil.formatTime(currentSeconds))
+                        .replace("&", "§");
+                sendRadiusMessage(mine, msg, true);
             }
         }
     }

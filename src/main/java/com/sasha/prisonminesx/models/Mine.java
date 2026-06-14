@@ -29,10 +29,18 @@ public class Mine {
     private boolean warnGlobal = true;
     private boolean paused = false;
 
-    // In-memory tracking
+    // --- Premium Analytics ---
+    private long lifetimeMinedBlocks = 0;
+    private int lifetimeResets = 0;
+
+    // --- In-memory tracking ---
     private transient int totalBlocks = 0;
     private transient int minedBlocks = 0;
     private transient int timeUntilReset = 600;
+
+    // --- Undo History Variables ---
+    private transient int[] prevBounds = null;
+    private transient String prevWorld = null;
 
     public Mine(String name, String worldName, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
         this.name = name;
@@ -58,6 +66,29 @@ public class Mine {
         this.totalBlocks = (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
         this.minedBlocks = 0;
         this.timeUntilReset = this.resetDelay;
+    }
+
+    // --- Undo Management ---
+    public void savePreviousBounds() {
+        this.prevBounds = new int[]{minX, minY, minZ, maxX, maxY, maxZ};
+        this.prevWorld = this.worldName;
+    }
+
+    public boolean hasPreviousBounds() {
+        return prevBounds != null;
+    }
+
+    public void restorePreviousBounds() {
+        if (prevBounds != null) {
+            this.worldName = prevWorld;
+            this.minX = prevBounds[0];
+            this.minY = prevBounds[1];
+            this.minZ = prevBounds[2];
+            this.maxX = prevBounds[3];
+            this.maxY = prevBounds[4];
+            this.maxZ = prevBounds[5];
+            this.prevBounds = null;
+        }
     }
 
     public void incrementMinedBlocks() { this.minedBlocks++; }
@@ -101,6 +132,9 @@ public class Mine {
     public boolean isWarnGlobal() { return warnGlobal; }
     public boolean isPaused() { return paused; }
 
+    public long getLifetimeMinedBlocks() { return lifetimeMinedBlocks; }
+    public int getLifetimeResets() { return lifetimeResets; }
+
     // --- Setters ---
     public void setWorldName(String worldName) { this.worldName = worldName; }
     public void setMinX(int minX) { this.minX = minX; }
@@ -125,4 +159,9 @@ public class Mine {
     public void setActionbarEnabled(boolean actionbarEnabled) { this.actionbarEnabled = actionbarEnabled; }
     public void setWarnGlobal(boolean warnGlobal) { this.warnGlobal = warnGlobal; }
     public void setPaused(boolean paused) { this.paused = paused; }
+
+    public void setLifetimeMinedBlocks(long lifetimeMinedBlocks) { this.lifetimeMinedBlocks = lifetimeMinedBlocks; }
+    public void setLifetimeResets(int lifetimeResets) { this.lifetimeResets = lifetimeResets; }
+    public void incrementLifetimeMinedBlocks() { this.lifetimeMinedBlocks++; }
+    public void incrementLifetimeResets() { this.lifetimeResets++; }
 }

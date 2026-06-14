@@ -102,6 +102,7 @@ public class MineGUI {
     public static void openFlagsMenu(Player player, Mine mine, PrisonMinesX plugin) {
         Inventory inv = Bukkit.createInventory(null, 36, get(plugin, "gui.flags.title").replace("%mine%", mine.getName()));
 
+        // --- ROW 2 (Slots 10-16: 7 Items) ---
         inv.setItem(10, createGuiItem(Material.CLOCK, get(plugin, "gui.flags.delay"), getLore(plugin, "gui.flags.delay-lore", "%value%", mine.getResetDelay() / 60 + "m")));
 
         StringBuilder warns = new StringBuilder();
@@ -109,21 +110,35 @@ public class MineGUI {
         String warnStr = warns.length() > 0 ? warns.substring(0, warns.length() - 1) : "None";
         inv.setItem(11, createGuiItem(Material.BELL, get(plugin, "gui.flags.warnings"), getLore(plugin, "gui.flags.warnings-lore", "%value%", warnStr)));
 
-        inv.setItem(12, createGuiItem(Material.GRASS_BLOCK, get(plugin, "gui.flags.surface"), getLore(plugin, "gui.flags.surface-lore", "%value%", mine.getSurface() == null ? "None" : com.sasha.prisonminesx.commands.MineCommand.formatName(mine.getSurface()))));
-        inv.setItem(13, createGuiItem(Material.EXPERIENCE_BOTTLE, get(plugin, "gui.flags.percent"), getLore(plugin, "gui.flags.percent-lore", "%value%", mine.getResetPercentage() == -1.0 ? "Default" : mine.getResetPercentage() + "%")));
+        inv.setItem(12, createGuiItem(Material.EXPERIENCE_BOTTLE, get(plugin, "gui.flags.percent"), getLore(plugin, "gui.flags.percent-lore", "%value%", mine.getResetPercentage() == -1.0 ? "Default" : mine.getResetPercentage() + "%")));
 
+        inv.setItem(13, createGuiItem(Material.SPONGE, get(plugin, "gui.flags.fillmode"), getLore(plugin, "gui.flags.fillmode-lore", "%state%", mine.isFillMode() ? get(plugin, "formats.enabled") : get(plugin, "formats.disabled"))));
+
+        Material surfaceIcon = Material.GRASS_BLOCK;
+        if (mine.getSurface() != null) {
+            Material matched = Material.matchMaterial(mine.getSurface());
+            if (matched != null) surfaceIcon = matched;
+        }
+        inv.setItem(14, createGuiItem(surfaceIcon, get(plugin, "gui.flags.surface"), getLore(plugin, "gui.flags.surface-lore", "%value%", mine.getSurface() == null ? "None" : com.sasha.prisonminesx.commands.MineCommand.formatName(mine.getSurface()))));
+
+        inv.setItem(15, createGuiItem(Material.NOTE_BLOCK, get(plugin, "gui.flags.silent"), getLore(plugin, "gui.flags.silent-lore", "%state%", mine.isSilent() ? get(plugin, "formats.enabled") : get(plugin, "formats.disabled"))));
+
+        inv.setItem(16, createGuiItem(Material.OAK_SIGN, get(plugin, "gui.flags.warn-global"), getLore(plugin, "gui.flags.warn-global-lore", "%state%", mine.isWarnGlobal() ? get(plugin, "formats.global") : get(plugin, "formats.nearby"))));
+
+        // --- ROW 3 (Slots 20-24: 5 Items) ---
         Material iconMat = Material.matchMaterial(mine.getDisplayItem());
         if (iconMat == null) iconMat = Material.DIAMOND_PICKAXE;
-        inv.setItem(14, createGuiItem(iconMat, get(plugin, "gui.flags.icon"), getLore(plugin, "gui.flags.icon-lore", "%value%", com.sasha.prisonminesx.commands.MineCommand.formatName(mine.getDisplayItem()))));
+        inv.setItem(20, createGuiItem(iconMat, get(plugin, "gui.flags.icon"), getLore(plugin, "gui.flags.icon-lore", "%value%", com.sasha.prisonminesx.commands.MineCommand.formatName(mine.getDisplayItem()))));
 
-        inv.setItem(19, createGuiItem(Material.SPONGE, get(plugin, "gui.flags.fillmode"), getLore(plugin, "gui.flags.fillmode-lore", "%state%", mine.isFillMode() ? get(plugin, "formats.enabled") : get(plugin, "formats.disabled"))));
-        inv.setItem(20, createGuiItem(Material.NOTE_BLOCK, get(plugin, "gui.flags.silent"), getLore(plugin, "gui.flags.silent-lore", "%state%", mine.isSilent() ? get(plugin, "formats.enabled") : get(plugin, "formats.disabled"))));
         inv.setItem(21, createGuiItem(Material.ENDER_EYE, get(plugin, "gui.flags.tp-reset"), getLore(plugin, "gui.flags.tp-reset-lore", "%state%", mine.isTeleportOnReset() ? get(plugin, "formats.enabled") : get(plugin, "formats.disabled"))));
-        inv.setItem(22, createGuiItem(Material.ARMOR_STAND, get(plugin, "gui.flags.hologram"), getLore(plugin, "gui.flags.hologram-lore", "%state%", mine.isHologramEnabled() ? get(plugin, "formats.enabled") : get(plugin, "formats.disabled"))));
-        inv.setItem(23, createGuiItem(Material.NAME_TAG, get(plugin, "gui.flags.actionbar"), getLore(plugin, "gui.flags.actionbar-lore", "%state%", mine.isActionbarEnabled() ? get(plugin, "formats.enabled") : get(plugin, "formats.disabled"))));
-        inv.setItem(24, createGuiItem(Material.OAK_SIGN, get(plugin, "gui.flags.warn-global"), getLore(plugin, "gui.flags.warn-global-lore", "%state%", mine.isWarnGlobal() ? get(plugin, "formats.global") : get(plugin, "formats.nearby"))));
-        inv.setItem(25, createGuiItem(Material.BARRIER, get(plugin, "gui.flags.pause"), getLore(plugin, "gui.flags.pause-lore", "%state%", mine.isPaused() ? get(plugin, "formats.paused") : get(plugin, "formats.running"))));
 
+        inv.setItem(22, createGuiItem(Material.ARMOR_STAND, get(plugin, "gui.flags.hologram"), getLore(plugin, "gui.flags.hologram-lore", "%state%", mine.isHologramEnabled() ? get(plugin, "formats.enabled") : get(plugin, "formats.disabled"))));
+
+        inv.setItem(23, createGuiItem(Material.NAME_TAG, get(plugin, "gui.flags.actionbar"), getLore(plugin, "gui.flags.actionbar-lore", "%state%", mine.isActionbarEnabled() ? get(plugin, "formats.enabled") : get(plugin, "formats.disabled"))));
+
+        inv.setItem(24, createGuiItem(Material.BARRIER, get(plugin, "gui.flags.pause"), getLore(plugin, "gui.flags.pause-lore", "%state%", mine.isPaused() ? get(plugin, "formats.paused") : get(plugin, "formats.running"))));
+
+        // --- ROW 4 (Slot 31: Back Button) ---
         inv.setItem(31, createGuiItem(Material.ARROW, get(plugin, "gui.flags.back")));
 
         fillEmpty(inv);

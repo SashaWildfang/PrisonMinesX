@@ -40,6 +40,7 @@ public class GUIListener implements Listener {
 
                 if (title.startsWith(flagsBase) && ChatListener.promptMap.containsKey(player.getUniqueId())) {
                     String[] data = ChatListener.promptMap.get(player.getUniqueId()).split(":");
+
                     if (data.length > 1 && data[2].equals("displayitem")) {
                         Mine mine = plugin.getMineManager().getMine(data[0]);
                         if (mine != null) {
@@ -47,6 +48,21 @@ public class GUIListener implements Listener {
                             plugin.getMineManager().addMine(mine);
                             ChatListener.promptMap.remove(player.getUniqueId());
                             player.sendMessage(getMsg("prefix") + getMsg("prompts.icon-set"));
+                            MineGUI.openFlagsMenu(player, mine, plugin);
+                        }
+                    }
+                    else if (data.length > 1 && data[2].equals("surface")) {
+                        Material clickedMat = event.getCurrentItem().getType();
+                        if (!clickedMat.isBlock()) {
+                            player.sendMessage(getMsg("prefix") + getMsg("commands.invalid-block"));
+                            return;
+                        }
+                        Mine mine = plugin.getMineManager().getMine(data[0]);
+                        if (mine != null) {
+                            mine.setSurface(clickedMat.name());
+                            plugin.getMineManager().addMine(mine);
+                            ChatListener.promptMap.remove(player.getUniqueId());
+                            player.sendMessage(getMsg("prefix") + getMsg("prompts.surface-set").replace("%block%", com.sasha.prisonminesx.commands.MineCommand.formatName(clickedMat.name())));
                             MineGUI.openFlagsMenu(player, mine, plugin);
                         }
                     }
@@ -69,7 +85,7 @@ public class GUIListener implements Listener {
 
                         player.closeInventory();
                         ChatListener.promptMap.put(player.getUniqueId(), mineName + ":block:" + material);
-                        player.sendMessage(getMsg("prompts.enter-percent").replace("%block%", niceName));
+                        player.sendMessage(getMsg("prefix") + getMsg("prompts.enter-percent").replace("%block%", niceName));
                     } else {
                         player.sendMessage(getMsg("prefix") + getMsg("commands.invalid-block"));
                     }
@@ -155,23 +171,31 @@ public class GUIListener implements Listener {
 
                 if (itemName.equals(getMsg("gui.flags.icon"))) {
                     ChatListener.promptMap.put(player.getUniqueId(), mineName + ":flag:displayitem");
-                    player.sendMessage(getMsg("prompts.click-inv-icon"));
-                } else if (itemName.equals(getMsg("gui.flags.delay"))) {
+                    player.sendMessage(getMsg("prefix") + getMsg("prompts.click-inv-icon"));
+                }
+                else if (itemName.equals(getMsg("gui.flags.surface"))) {
+                    if (event.isRightClick()) {
+                        mine.setSurface(null);
+                        plugin.getMineManager().addMine(mine);
+                        player.sendMessage(getMsg("prefix") + getMsg("prompts.surface-cleared"));
+                        MineGUI.openFlagsMenu(player, mine, plugin);
+                    } else {
+                        ChatListener.promptMap.put(player.getUniqueId(), mineName + ":flag:surface");
+                        player.sendMessage(getMsg("prefix") + getMsg("prompts.click-inv-surface"));
+                    }
+                }
+                else if (itemName.equals(getMsg("gui.flags.delay"))) {
                     player.closeInventory();
                     ChatListener.promptMap.put(player.getUniqueId(), mineName + ":flag:delay");
-                    player.sendMessage(getMsg("prompts.enter-delay"));
+                    player.sendMessage(getMsg("prefix") + getMsg("prompts.enter-delay"));
                 } else if (itemName.equals(getMsg("gui.flags.warnings"))) {
                     player.closeInventory();
                     ChatListener.promptMap.put(player.getUniqueId(), mineName + ":flag:warnings");
-                    player.sendMessage(getMsg("prompts.enter-warnings"));
-                } else if (itemName.equals(getMsg("gui.flags.surface"))) {
-                    player.closeInventory();
-                    ChatListener.promptMap.put(player.getUniqueId(), mineName + ":flag:surface");
-                    player.sendMessage(getMsg("prompts.enter-surface"));
+                    player.sendMessage(getMsg("prefix") + getMsg("prompts.enter-warnings"));
                 } else if (itemName.equals(getMsg("gui.flags.percent"))) {
                     player.closeInventory();
                     ChatListener.promptMap.put(player.getUniqueId(), mineName + ":flag:percent");
-                    player.sendMessage(getMsg("prompts.enter-percent-reset"));
+                    player.sendMessage(getMsg("prefix") + getMsg("prompts.enter-percent-reset"));
                 }
             }
             else if (title.startsWith(blocksBase)) {
@@ -201,7 +225,7 @@ public class GUIListener implements Listener {
                     } else if (event.isLeftClick()) {
                         player.closeInventory();
                         ChatListener.promptMap.put(player.getUniqueId(), mineName + ":block:" + material);
-                        player.sendMessage(getMsg("prompts.enter-percent").replace("%block%", niceName));
+                        player.sendMessage(getMsg("prefix") + getMsg("prompts.enter-percent").replace("%block%", niceName));
                     }
                 }
             }

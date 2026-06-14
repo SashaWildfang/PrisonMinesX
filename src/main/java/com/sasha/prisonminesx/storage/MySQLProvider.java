@@ -69,7 +69,9 @@ public class MySQLProvider implements StorageProvider {
                 "hologram_enabled BOOLEAN, " +
                 "actionbar_enabled BOOLEAN, " +
                 "warn_global BOOLEAN, " +
-                "paused BOOLEAN);";
+                "paused BOOLEAN, " +
+                "lifetime_mined BIGINT, " +
+                "lifetime_resets INT);";
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -83,60 +85,70 @@ public class MySQLProvider implements StorageProvider {
 
     @Override
     public Map<String, Mine> loadAllMines() {
+        return fetchMinesFromDB("SELECT * FROM prisonminesx_mines;", null);
+    }
+
+    @Override
+    public Map<String, Mine> loadMinesByWorld(String worldName) {
+        return fetchMinesFromDB("SELECT * FROM prisonminesx_mines WHERE world = ?;", worldName);
+    }
+
+    private Map<String, Mine> fetchMinesFromDB(String sql, String worldFilter) {
         Map<String, Mine> loadedMines = new HashMap<>();
-        String sql = "SELECT * FROM prisonminesx_mines;";
-
         try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            Type warningType = new TypeToken<List<Integer>>(){}.getType();
-            Type compType = new TypeToken<Map<String, Double>>(){}.getType();
-
-            while (rs.next()) {
-                String name = rs.getString("name");
-                String worldName = rs.getString("world");
-                Mine mine = new Mine(name, worldName, rs.getInt("minX"), rs.getInt("minY"), rs.getInt("minZ"), rs.getInt("maxX"), rs.getInt("maxY"), rs.getInt("maxZ"));
-
-                // Core
-                mine.setResetDelay(rs.getInt("reset_delay"));
-                mine.setSilent(rs.getBoolean("silent"));
-
-                // Premium Flags
-                mine.setDisplayItem(rs.getString("display_item"));
-                mine.setResetPercentage(rs.getDouble("reset_percentage"));
-                mine.setFillMode(rs.getBoolean("fill_mode"));
-                mine.setSurface(rs.getString("surface"));
-                mine.setTeleportOnReset(rs.getBoolean("teleport_on_reset"));
-                mine.setHologramEnabled(rs.getBoolean("hologram_enabled"));
-                mine.setActionbarEnabled(rs.getBoolean("actionbar_enabled"));
-                mine.setWarnGlobal(rs.getBoolean("warn_global"));
-                mine.setPaused(rs.getBoolean("paused"));
-
-                String warningsJson = rs.getString("reset_warnings");
-                if (warningsJson != null && !warningsJson.isEmpty()) {
-                    List<Integer> warnings = gson.fromJson(warningsJson, warningType);
-                    mine.setResetWarnings(warnings != null ? warnings : new ArrayList<>());
-                }
-
-                String compJson = rs.getString("composition");
-                if (compJson != null && !compJson.isEmpty()) {
-                    Map<String, Double> comp = gson.fromJson(compJson, compType);
-                    if (comp != null) {
-                        for (Map.Entry<String, Double> entry : comp.entrySet()) mine.addComposition(entry.getKey(), entry.getValue());
-                    }
-                }
-
-                double tpX = rs.getDouble("tp_x");
-                if (!rs.wasNull()) {
-                    World world = Bukkit.getWorld(worldName);
-                    mine.setTpLocation(new Location(world, tpX, rs.getDouble("tp_y"), rs.getDouble("tp_z"), rs.getFloat("tp_yaw"), rs.getFloat("tp_pitch")));
-                }
-
-                loadedMines.put(name, mine);
+            if (worldFilter != null) {
+                ps.setString(1, worldFilter);
             }
-            plugin.getLogger().info("Successfully loaded " + loadedMines.size() + " mines from MySQL.");
 
+            try (ResultSet rs = ps.executeQuery()) {
+                Type warningType = new TypeToken<List<Integer>>(){}.getType();
+                Type compType = new TypeToken<Map<String, Double>>(){}.getType();
+
+                while (rs.next()) {
+                    String name = rs.getString("name");
+                    String worldName = rs.getString("world");
+                    Mine mine = new Mine(name, worldName, rs.getInt("minX"), rs.getInt("minY"), rs.getInt("minZ"), rs.getInt("maxX"), rs.getInt("maxY"), rs.getInt("maxZ"));
+
+                    mine.setResetDelay(rs.getInt("reset_delay"));
+                    mine.setSilent(rs.getBoolean("silent"));
+                    mine.setDisplayItem(rs.getString("display_item"));
+                    mine.setResetPercentage(rs.getDouble("reset_percentage"));
+                    mine.setFillMode(rs.getBoolean("fill_mode"));
+                    mine.setSurface(rs.getString("surface"));
+                    mine.setTeleportOnReset(rs.getBoolean("teleport_on_reset"));
+                    mine.setHologramEnabled(rs.getBoolean("hologram_enabled"));
+                    mine.setActionbarEnabled(rs.getBoolean("actionbar_enabled"));
+                    mine.setWarnGlobal(rs.getBoolean("warn_global"));
+                    mine.setPaused(rs.getBoolean("paused"));
+
+                    mine.setLifetimeMinedBlocks(rs.getLong("lifetime_mined"));
+                    mine.setLifetimeResets(rs.getInt("lifetime_resets"));
+
+                    String warningsJson = rs.getString("reset_warnings");
+                    if (warningsJson != null && !warningsJson.isEmpty()) {
+                        List<Integer> warnings = gson.fromJson(warningsJson, warningType);
+                        mine.setResetWarnings(warnings != null ? warnings : new ArrayList<>());
+                    }
+
+                    String compJson = rs.getString("composition");
+                    if (compJson != null && !compJson.isEmpty()) {
+                        Map<String, Double> comp = gson.fromJson(compJson, compType);
+                        if (comp != null) {
+                            for (Map.Entry<String, Double> entry : comp.entrySet()) mine.addComposition(entry.getKey(), entry.getValue());
+                        }
+                    }
+
+                    double tpX = rs.getDouble("tp_x");
+                    if (!rs.wasNull()) {
+                        World world = Bukkit.getWorld(worldName);
+                        mine.setTpLocation(new Location(world, tpX, rs.getDouble("tp_y"), rs.getDouble("tp_z"), rs.getFloat("tp_yaw"), rs.getFloat("tp_pitch")));
+                    }
+
+                    loadedMines.put(name, mine);
+                }
+            }
         } catch (SQLException e) {
             plugin.getLogger().severe("Failed to load mines from MySQL!");
             e.printStackTrace();
@@ -146,9 +158,9 @@ public class MySQLProvider implements StorageProvider {
 
     @Override
     public void saveMine(Mine mine) {
-        String sql = "INSERT INTO prisonminesx_mines (name, world, minX, minY, minZ, maxX, maxY, maxZ, reset_delay, reset_warnings, silent, tp_x, tp_y, tp_z, tp_yaw, tp_pitch, composition, display_item, reset_percentage, fill_mode, surface, teleport_on_reset, hologram_enabled, actionbar_enabled, warn_global, paused) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                "ON DUPLICATE KEY UPDATE world=?, minX=?, minY=?, minZ=?, maxX=?, maxY=?, maxZ=?, reset_delay=?, reset_warnings=?, silent=?, tp_x=?, tp_y=?, tp_z=?, tp_yaw=?, tp_pitch=?, composition=?, display_item=?, reset_percentage=?, fill_mode=?, surface=?, teleport_on_reset=?, hologram_enabled=?, actionbar_enabled=?, warn_global=?, paused=?;";
+        String sql = "INSERT INTO prisonminesx_mines (name, world, minX, minY, minZ, maxX, maxY, maxZ, reset_delay, reset_warnings, silent, tp_x, tp_y, tp_z, tp_yaw, tp_pitch, composition, display_item, reset_percentage, fill_mode, surface, teleport_on_reset, hologram_enabled, actionbar_enabled, warn_global, paused, lifetime_mined, lifetime_resets) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                "ON DUPLICATE KEY UPDATE world=?, minX=?, minY=?, minZ=?, maxX=?, maxY=?, maxZ=?, reset_delay=?, reset_warnings=?, silent=?, tp_x=?, tp_y=?, tp_z=?, tp_yaw=?, tp_pitch=?, composition=?, display_item=?, reset_percentage=?, fill_mode=?, surface=?, teleport_on_reset=?, hologram_enabled=?, actionbar_enabled=?, warn_global=?, paused=?, lifetime_mined=?, lifetime_resets=?;";
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = dataSource.getConnection();
@@ -157,7 +169,6 @@ public class MySQLProvider implements StorageProvider {
                 String warningsJson = gson.toJson(mine.getResetWarnings());
                 String compJson = gson.toJson(mine.getComposition());
 
-                // INSERT Bindings
                 ps.setString(1, mine.getName());
                 ps.setString(2, mine.getWorldName());
                 ps.setInt(3, mine.getMinX());
@@ -191,40 +202,43 @@ public class MySQLProvider implements StorageProvider {
                 ps.setBoolean(24, mine.isActionbarEnabled());
                 ps.setBoolean(25, mine.isWarnGlobal());
                 ps.setBoolean(26, mine.isPaused());
+                ps.setLong(27, mine.getLifetimeMinedBlocks());
+                ps.setInt(28, mine.getLifetimeResets());
 
-                // UPDATE Bindings
-                ps.setString(27, mine.getWorldName());
-                ps.setInt(28, mine.getMinX());
-                ps.setInt(29, mine.getMinY());
-                ps.setInt(30, mine.getMinZ());
-                ps.setInt(31, mine.getMaxX());
-                ps.setInt(32, mine.getMaxY());
-                ps.setInt(33, mine.getMaxZ());
-                ps.setInt(34, mine.getResetDelay());
-                ps.setString(35, warningsJson);
-                ps.setBoolean(36, mine.isSilent());
+                ps.setString(29, mine.getWorldName());
+                ps.setInt(30, mine.getMinX());
+                ps.setInt(31, mine.getMinY());
+                ps.setInt(32, mine.getMinZ());
+                ps.setInt(33, mine.getMaxX());
+                ps.setInt(34, mine.getMaxY());
+                ps.setInt(35, mine.getMaxZ());
+                ps.setInt(36, mine.getResetDelay());
+                ps.setString(37, warningsJson);
+                ps.setBoolean(38, mine.isSilent());
 
                 if (mine.getTpLocation() != null) {
-                    ps.setDouble(37, mine.getTpLocation().getX());
-                    ps.setDouble(38, mine.getTpLocation().getY());
-                    ps.setDouble(39, mine.getTpLocation().getZ());
-                    ps.setFloat(40, mine.getTpLocation().getYaw());
-                    ps.setFloat(41, mine.getTpLocation().getPitch());
+                    ps.setDouble(39, mine.getTpLocation().getX());
+                    ps.setDouble(40, mine.getTpLocation().getY());
+                    ps.setDouble(41, mine.getTpLocation().getZ());
+                    ps.setFloat(42, mine.getTpLocation().getYaw());
+                    ps.setFloat(43, mine.getTpLocation().getPitch());
                 } else {
-                    ps.setNull(37, java.sql.Types.DOUBLE); ps.setNull(38, java.sql.Types.DOUBLE); ps.setNull(39, java.sql.Types.DOUBLE);
-                    ps.setNull(40, java.sql.Types.FLOAT); ps.setNull(41, java.sql.Types.FLOAT);
+                    ps.setNull(39, java.sql.Types.DOUBLE); ps.setNull(40, java.sql.Types.DOUBLE); ps.setNull(41, java.sql.Types.DOUBLE);
+                    ps.setNull(42, java.sql.Types.FLOAT); ps.setNull(43, java.sql.Types.FLOAT);
                 }
 
-                ps.setString(42, compJson);
-                ps.setString(43, mine.getDisplayItem());
-                ps.setDouble(44, mine.getResetPercentage());
-                ps.setBoolean(45, mine.isFillMode());
-                ps.setString(46, mine.getSurface());
-                ps.setBoolean(47, mine.isTeleportOnReset());
-                ps.setBoolean(48, mine.isHologramEnabled());
-                ps.setBoolean(49, mine.isActionbarEnabled());
-                ps.setBoolean(50, mine.isWarnGlobal());
-                ps.setBoolean(51, mine.isPaused());
+                ps.setString(44, compJson);
+                ps.setString(45, mine.getDisplayItem());
+                ps.setDouble(46, mine.getResetPercentage());
+                ps.setBoolean(47, mine.isFillMode());
+                ps.setString(48, mine.getSurface());
+                ps.setBoolean(49, mine.isTeleportOnReset());
+                ps.setBoolean(50, mine.isHologramEnabled());
+                ps.setBoolean(51, mine.isActionbarEnabled());
+                ps.setBoolean(52, mine.isWarnGlobal());
+                ps.setBoolean(53, mine.isPaused());
+                ps.setLong(54, mine.getLifetimeMinedBlocks());
+                ps.setInt(55, mine.getLifetimeResets());
 
                 ps.executeUpdate();
             } catch (SQLException e) {

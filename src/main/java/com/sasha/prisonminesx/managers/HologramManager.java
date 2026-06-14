@@ -46,6 +46,23 @@ public class HologramManager {
             if (stands == null) return;
         }
 
+        // PREMIUM FEATURE: Dynamic Location Checking & Teleporting
+        World w = Bukkit.getWorld(mine.getWorldName());
+        if (w != null) {
+            double expectedX = mine.getMinX() + (mine.getMaxX() - mine.getMinX()) / 2.0 + 0.5;
+            double expectedY = mine.getMaxY() + 2.5;
+            double expectedZ = mine.getMinZ() + (mine.getMaxZ() - mine.getMinZ()) / 2.0 + 0.5;
+
+            Location topStandLoc = stands.get(0).getLocation();
+
+            // Teleport entities smoothly to the new position if redefined
+            if (topStandLoc.distanceSquared(new Location(w, expectedX, expectedY, expectedZ)) > 0.1) {
+                for (int i = 0; i < stands.size(); i++) {
+                    stands.get(i).teleport(new Location(w, expectedX, expectedY - (i * 0.3), expectedZ));
+                }
+            }
+        }
+
         String pausedFlag = mine.isPaused() ? plugin.getConfig().getString("hologram-format.paused-placeholder", "&7(PAUSED)") : "";
 
         String l1 = plugin.getConfig().getString("hologram-format.line-1", "&b&l%mine% Mine %paused%")
@@ -76,7 +93,6 @@ public class HologramManager {
         if (stands != null && stands.size() >= 3) {
             stands.get(2).setCustomName(flashMsg);
 
-            // 3 seconds (60 ticks) as requested
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (mine.isHologramEnabled() && holograms.containsKey(mine.getName())) {
                     stands.get(2).setCustomName(plugin.getConfig().getString("hologram-format.line-3", "&7Resets in &c%time%")

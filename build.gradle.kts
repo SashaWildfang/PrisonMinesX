@@ -8,6 +8,7 @@ repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://mvn.intellectualsites.com/content/groups/public/")
+    maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
 }
 
 dependencies {
@@ -16,6 +17,7 @@ dependencies {
 
     compileOnly("com.fastasyncworldedit:FastAsyncWorldEdit-Core:2.9.2")
     compileOnly("com.fastasyncworldedit:FastAsyncWorldEdit-Bukkit:2.9.2")
+    compileOnly("me.clip:placeholderapi:2.11.5")
 }
 
 java {

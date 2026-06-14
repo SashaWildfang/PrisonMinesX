@@ -4,6 +4,7 @@ import com.sasha.prisonminesx.PrisonMinesX;
 import com.sasha.prisonminesx.models.Mine;
 import com.sasha.prisonminesx.utils.FAWEResetEngine;
 import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import java.util.Collection;
@@ -19,27 +20,45 @@ public class MineManager {
         this.plugin = plugin;
     }
 
-    public void loadMines() {
+    public void loadActiveWorlds() {
         activeMines.clear();
-        Map<String, Mine> loaded = plugin.getDatabaseManager().getProvider().loadAllMines();
-        if (loaded != null) {
-            activeMines.putAll(loaded);
+        for (World world : Bukkit.getWorlds()) {
+            loadMinesForWorld(world.getName());
         }
-        for (Mine m : activeMines.values()) m.calculateTotalBlocks();
-        plugin.getLogger().info("MineManager initialized with " + activeMines.size() + " mines.");
+        plugin.getLogger().info("MineManager lazy-loaded " + activeMines.size() + " mines across active worlds.");
     }
 
-    // Default internal reset (Automatic)
+    public void loadMinesForWorld(String worldName) {
+        Map<String, Mine> loaded = plugin.getDatabaseManager().getProvider().loadMinesByWorld(worldName);
+        if (loaded != null) {
+            for (Mine m : loaded.values()) {
+                m.calculateTotalBlocks();
+                activeMines.put(m.getName(), m);
+            }
+        }
+    }
+
+    public void unloadMinesForWorld(String worldName) {
+        activeMines.entrySet().removeIf(entry -> {
+            if (entry.getValue().getWorldName().equals(worldName)) {
+                plugin.getHologramManager().removeHologram(entry.getKey(), entry.getValue());
+                return true;
+            }
+            return false;
+        });
+    }
+
     public void resetMine(String mineName) {
         resetMine(mineName, false);
     }
 
-    // Overloaded reset to handle Forced triggers
     public void resetMine(String mineName, boolean isForced) {
         Mine mine = getMine(mineName);
         if (mine != null && mine.isSetup()) {
-            FAWEResetEngine.resetMineAsync(mine);
+
+            FAWEResetEngine.resetMineLayered(plugin, mine);
             mine.calculateTotalBlocks();
+            mine.incrementLifetimeResets(); // Track Analytics
 
             if (mine.isHologramEnabled()) {
                 if (isForced) {
@@ -50,7 +69,7 @@ public class MineManager {
             }
 
             if (mine.isTeleportOnReset() && mine.getTpLocation() != null) {
-                org.bukkit.World w = Bukkit.getWorld(mine.getWorldName());
+                World w = Bukkit.getWorld(mine.getWorldName());
                 if (w != null) {
                     for (Player p : w.getPlayers()) {
                         if (p.getLocation().getBlockX() >= mine.getMinX() && p.getLocation().getBlockX() <= mine.getMaxX() &&
