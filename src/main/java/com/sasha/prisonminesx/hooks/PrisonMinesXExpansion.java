@@ -17,12 +17,12 @@ public class PrisonMinesXExpansion extends PlaceholderExpansion {
 
     @Override
     public @NotNull String getIdentifier() {
-        return "prisonmines";
+        return "prisonminesx";
     }
 
     @Override
     public @NotNull String getAuthor() {
-        return plugin.getDescription().getAuthors().get(0);
+        return "Sasha";
     }
 
     @Override
@@ -37,34 +37,55 @@ public class PrisonMinesXExpansion extends PlaceholderExpansion {
 
     @Override
     public String onRequest(OfflinePlayer player, @NotNull String params) {
-        // Formats:
-        // %prisonmines_[mine]_remaining% -> "85.2%"
-        // %prisonmines_[mine]_time% -> "5m 20s"
-        // %prisonmines_[mine]_blocks% -> "1402"
-        // %prisonmines_[mine]_status% -> "Running"
+        // Formats: %prisonminesx_mine_<name>_<property>%
 
-        String[] args = params.split("_");
-        if (args.length < 2) return null;
+        String[] parts = params.split("_");
+        if (parts.length >= 3 && parts[0].equalsIgnoreCase("mine")) {
+            String mineName = parts[1];
+            Mine mine = plugin.getMineManager().getMine(mineName);
+            if (mine == null) return "Invalid Mine";
 
-        String mineName = args[0];
-        String stat = args[1];
+            String property = parts[2].toLowerCase();
+            switch (property) {
+                // Core Timers & Blocks
+                case "timeleft":
+                    return TimeUtil.formatTime(mine.getTimeUntilReset());
+                case "blocks":
+                    return String.valueOf(mine.getMinedBlocks());
+                case "totalblocks":
+                    return String.valueOf(mine.getTotalBlocks());
+                case "percent":
+                    return String.format("%.1f", mine.getPercentRemaining());
+                case "status":
+                    return mine.isPaused() ? "Paused" : "Running";
 
-        Mine mine = plugin.getMineManager().getMine(mineName);
-        if (mine == null) return "N/A";
+                // Extended Mine Info
+                case "world":
+                    return mine.getWorldName();
+                case "players":
+                    return String.valueOf(mine.getActivePlayers().size());
+                case "lifetime_mined":
+                    return String.valueOf(mine.getLifetimeMinedBlocks());
+                case "lifetime_resets":
+                    return String.valueOf(mine.getLifetimeResets());
 
-        switch (stat.toLowerCase()) {
-            case "remaining":
-                return String.format("%.1f", mine.getPercentRemaining()) + "%";
-            case "time":
-                return TimeUtil.formatTime(mine.getTimeUntilReset());
-            case "blocks":
-                return String.valueOf(mine.getMinedBlocks());
-            case "total":
-                return String.valueOf(mine.getTotalBlocks());
-            case "status":
-                return mine.isPaused() ? "Paused" : "Running";
-            default:
-                return null;
+                // Flags & Configurations
+                case "reset_delay":
+                    return TimeUtil.formatTime(mine.getResetDelay());
+                case "reset_percent":
+                    return String.valueOf(mine.getResetPercentage());
+                case "reset_style":
+                    return com.sasha.prisonminesx.commands.MineCommand.formatName(mine.getResetStyle());
+                case "fill_mode":
+                    return mine.isFillMode() ? "Enabled" : "Disabled";
+                case "is_silent":
+                    return mine.isSilent() ? "Yes" : "No";
+                case "is_paused":
+                    return mine.isPaused() ? "Yes" : "No";
+                case "surface_block":
+                    return mine.getSurface() == null ? "None" : com.sasha.prisonminesx.commands.MineCommand.formatName(mine.getSurface());
+            }
         }
+        return null;
     }
 }

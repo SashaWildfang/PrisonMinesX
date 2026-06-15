@@ -1,51 +1,100 @@
-# ========================================== #
-#             PrisonMinesX Config            #
-# ========================================== #
+# ========================================================== #
+#                    PrisonMinesX Config                     #
+#               Developed by SashaTheSnep                    #
+# ========================================================== #
 
 # Database Configuration
 # Supported storage types: YAML, MYSQL, SQLITE
 storage:
   type: "YAML"
-  mysql:
-    host: "localhost"
-    port: 3306
-    database: "prisonminesx"
-    username: "root"
-    password: ""
-    use-ssl: false
 
-# Global Default Settings for New Mines
+  # To use MySQL, uncomment the lines below and fill in your details.
+  #mysql:
+  #  host: "localhost"
+  #  port: 3306
+  #  database: "prisonminesx"
+  #  username: "root"
+  #  password: ""
+  #  use-ssl: false
+
+# Global Settings
 settings:
-  # The percentage of blocks remaining that will trigger an automatic reset.
-  # (e.g., 20.0 means the mine resets when 80% of it has been mined).
-  # Set to -1.0 to disable percentage-based resets by default.
-  default-reset-percentage: 20.0
+  # Pagination limits for commands/GUIs (Maximum items displayed per page)
+  stats-per-page: 10
+  timers-per-page: 10
+  help-per-page: 10
+  warps-per-page: 45
 
-  # The time (in seconds) between automatic timer resets.
-  # (e.g., 600 seconds = 10 minutes).
-  default-reset-delay: 600
+  # The hourly offset from your server's system time for scheduled cron resets.
+  # Example: Use -5 for EST, +1 for London time, etc.
+  timezone-offset: 0
+
+  # PREMIUM OPTIMIZATION: Smart Resets
+  # If a mine's timer reaches 0, but nobody has mined any blocks in it,
+  # the plugin will silently restart the timer and skip the WorldEdit reset to save server CPU.
+  skip-empty-resets: true
+
+  # PREMIUM FEATURE: Schematic Placeholder
+  # If you link a .schem file to a mine, the plugin will paste the schematic
+  # and randomly replace this specific block with the mine's composition percentages.
+  schematic-placeholder-block: "SPONGE"
+
+  # The speed of the cinematic reset animations in server ticks (20 ticks = 1 second).
+  # Lower = Faster. Default is 2 (10 frames per second).
+  reset-animation-speed: 2
+
+  # Automatically reset the mine when an admin updates the block composition via GUI/Command?
+  auto-reset-on-set: true
+
+  # If true, it will ONLY auto-reset if the composition hits exactly 100% (Free Space = 0)
+  only-reset-when-full: true
+
+  # Automatically reset the mine when an admin unsets ALL blocks at once using `/pmines unset <mine> all`?
+  auto-reset-on-unset-all: true
+
+  # PREMIUM MECHANICS
+  # Apply Vanilla Fortune enchantment math to ALL blocks broken in the mine, regardless of natural behavior?
+  fortune-all-blocks: true
+
+  # Automatically place mined blocks directly into the player's inventory? (Prevents lag from dropped items)
+  auto-pickup-blocks: true
+
+  # Notify players in chat when their flight is automatically enabled or disabled entering/leaving a mine?
+  notify-flight-changes: true
+
+  # ========================================== #
+  #      DEFAULT FLAGS FOR NEWLY CREATED       #
+  # ========================================== #
+  # When /pmines create <name> is executed, the mine adopts these parameters automatically.
+  default-flags:
+    reset-delay: 600
+    reset-warnings: [600, 300, 60]
+    reset-percentage: 20.0
+    reset-style: "BOTTOM_UP"
+    surface-block: "NONE"
+    display-item: "DIAMOND_PICKAXE"
+    fill-mode: false
+    silent-reset: false
+    warn-mode: "GLOBAL"
+    teleport-on-reset: true
+    daily-reset-schedules: []
+    hologram: false
+    actionbar: false
+    paused: false
+    mine-fly: false
+    hunger-drain: false
+    fall-damage: false
+    pvp: false
+    place-blocks: false
 
 # ========================================== #
-#              Visual Formats                #
+#               Visual Formats               #
 # ========================================== #
-# Color Theme: &9 (Blue), &3 (Dark Aqua), &b (Aqua), &7 (Gray), &8 (Dark Gray)
-
 hologram-format:
-  # Available Placeholders: %mine%, %paused%
   line-1: "&9&l%mine% Mine %paused%"
-
-  # Available Placeholders: %mined%, %total%, %percent%
   line-2: "&b%mined%&8/&b%total% &7Blocks Mined &8(&b%percent%% &7Left&8)"
-
-  # Available Placeholders: %time%
   line-3: "&7Resets in &b%time%"
-
-  # Text appended to Line 1 when the mine's reset timer is paused.
   paused-placeholder: "&8(&cPAUSED&8)"
-
-  # The temporary text that flashes on Line 3 when an admin forces a reset.
   forced-reset-line: "&3&lMine was forcibly reset!"
 
-# The format for the Actionbar notification sent to players inside the mine.
-# Available Placeholders: %mine%, %mined%, %total%, %percent%, %time%
 actionbar-format: "&9&l%mine% &8| &b%mined%&8/&b%total% &7Mined &8| &7Resets in: &b%time%"

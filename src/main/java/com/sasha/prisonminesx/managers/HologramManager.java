@@ -10,14 +10,12 @@ import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 public class HologramManager {
 
     private final PrisonMinesX plugin;
-    private final Map<String, List<ArmorStand>> holograms = new HashMap<>();
 
     public HologramManager(PrisonMinesX plugin) {
         this.plugin = plugin;
@@ -29,117 +27,145 @@ public class HologramManager {
             return;
         }
 
-        List<ArmorStand> stands = holograms.get(mine.getName());
-
-        if (stands != null) {
-            for (ArmorStand as : stands) {
-                if (!as.isValid() || as.isDead()) {
-                    removeHologram(mine.getName(), mine);
-                    stands = null;
-                    break;
-                }
-            }
-        }
-
-        if (stands == null || stands.isEmpty()) {
-            stands = spawnHologram(mine);
-            if (stands == null) return;
-        }
-
-        // PREMIUM FEATURE: Dynamic Location Checking & Teleporting
         World w = Bukkit.getWorld(mine.getWorldName());
-        if (w != null) {
-            double expectedX = mine.getMinX() + (mine.getMaxX() - mine.getMinX()) / 2.0 + 0.5;
-            double expectedY = mine.getMaxY() + 2.5;
-            double expectedZ = mine.getMinZ() + (mine.getMaxZ() - mine.getMinZ()) / 2.0 + 0.5;
+        if (w == null) return;
 
-            Location topStandLoc = stands.get(0).getLocation();
+        double expectedX = mine.getMinX() + (mine.getMaxX() - mine.getMinX()) / 2.0 + 0.5;
+        double expectedY = mine.getMaxY() + 2.5;
+        double expectedZ = mine.getMinZ() + (mine.getMaxZ() - mine.getMinZ()) / 2.0 + 0.5;
 
-            // Teleport entities smoothly to the new position if redefined
-            if (topStandLoc.distanceSquared(new Location(w, expectedX, expectedY, expectedZ)) > 0.1) {
-                for (int i = 0; i < stands.size(); i++) {
-                    stands.get(i).teleport(new Location(w, expectedX, expectedY - (i * 0.3), expectedZ));
+        // Overlay with custom location if it has been specifically moved
+        Location holoLoc = mine.getHologramLocation();
+        if (holoLoc != null && holoLoc.getWorld() != null && holoLoc.getWorld().getName().equals(w.getName())) {
+            expectedX = holoLoc.getX();
+            expectedY = holoLoc.getY();
+            expectedZ = holoLoc.getZ();
+        }
+
+        int chunkX = (int) expectedX >> 4;
+        int chunkZ = (int) expectedZ >> 4;
+
+        if (!w.isChunkLoaded(chunkX, chunkZ)) return;
+
+        ArmorStand[] stands = new ArmorStand[3];
+        List<ArmorStand> ghostsToKill = new ArrayList<>();
+
+        for (Entity ent : w.getChunkAt(chunkX, chunkZ).getEntities()) {
+            if (ent instanceof ArmorStand) {
+                Set<String> tags = ent.getScoreboardTags();
+
+                if (tags.contains("pmx_holo_" + mine.getName() + "_0")) {
+                    if (stands[0] == null) stands[0] = (ArmorStand) ent; else ghostsToKill.add((ArmorStand) ent);
+                }
+                else if (tags.contains("pmx_holo_" + mine.getName() + "_1")) {
+                    if (stands[1] == null) stands[1] = (ArmorStand) ent; else ghostsToKill.add((ArmorStand) ent);
+                }
+                else if (tags.contains("pmx_holo_" + mine.getName() + "_2")) {
+                    if (stands[2] == null) stands[2] = (ArmorStand) ent; else ghostsToKill.add((ArmorStand) ent);
+                }
+                else if (tags.contains("pmx_holo_" + mine.getName())) {
+                    ghostsToKill.add((ArmorStand) ent);
                 }
             }
         }
 
-        String pausedFlag = mine.isPaused() ? plugin.getConfig().getString("hologram-format.paused-placeholder", "&7(PAUSED)") : "";
+        for (ArmorStand ghost : ghostsToKill) {
+            ghost.remove();
+        }
 
-        String l1 = plugin.getConfig().getString("hologram-format.line-1", "&b&l%mine% Mine %paused%")
+        for (int i = 0; i < 3; i++) {
+            if (stands[i] == null) {
+                Location loc = new Location(w, expectedX, expectedY - (i * 0.3), expectedZ);
+                int finalI = i;
+                ArmorStand as = w.spawn(loc, ArmorStand.class, entity -> {
+                    entity.setVisible(false);
+                    entity.setGravity(false);
+                    entity.setMarker(true);
+                    entity.setCustomNameVisible(true);
+                    entity.addScoreboardTag("pmx_holo_" + mine.getName() + "_" + finalI);
+                });
+                stands[i] = as;
+            }
+        }
+
+        Location topLoc = stands[0].getLocation();
+        if (topLoc.distanceSquared(new Location(w, expectedX, expectedY, expectedZ)) > 0.1) {
+            for (int i = 0; i < 3; i++) {
+                stands[i].teleport(new Location(w, expectedX, expectedY - (i * 0.3), expectedZ));
+            }
+        }
+
+        // Line 1
+        String pausedFlag = mine.isPaused() ? plugin.getConfig().getString("hologram-format.paused-placeholder", "&7(PAUSED)") : "";
+        String l1 = plugin.getConfig().getString("hologram-format.line-1", "&9&l%mine% Mine %paused%")
                 .replace("%mine%", mine.getName())
                 .replace("%paused%", pausedFlag).replace("&", "§").trim();
-        stands.get(0).setCustomName(l1);
+        stands[0].setCustomName(l1);
 
-        String l2 = plugin.getConfig().getString("hologram-format.line-2", "&e%mined%/%total% Blocks Mined &7(&a%percent%% Left&7)")
+        // Line 2
+        String l2 = plugin.getConfig().getString("hologram-format.line-2", "&b%mined%&8/&b%total% &7Blocks Mined &8(&b%percent%% &7Left&8)")
                 .replace("%mined%", String.valueOf(mine.getMinedBlocks()))
                 .replace("%total%", String.valueOf(mine.getTotalBlocks()))
                 .replace("%percent%", String.format("%.1f", mine.getPercentRemaining())).replace("&", "§");
-        stands.get(1).setCustomName(l2);
+        stands[1].setCustomName(l2);
 
-        String l3 = stands.get(2).getCustomName();
-        String flashMsg = plugin.getConfig().getString("hologram-format.forced-reset-line", "&a&lMine was Forcibly reset").replace("&", "§");
+        // Line 3 (Only updates if flash cooldown has passed)
+        if (System.currentTimeMillis() >= mine.getHologramFlashUntil()) {
+            String timerMsg = plugin.getConfig().getString("hologram-format.line-3", "&7Resets in &b%time%")
+                    .replace("%time%", TimeUtil.formatTime(mine.getTimeUntilReset())).replace("&", "§");
 
-        if (l3 == null || !l3.equals(flashMsg)) {
-            stands.get(2).setCustomName(plugin.getConfig().getString("hologram-format.line-3", "&7Resets in &c%time%")
-                    .replace("%time%", TimeUtil.formatTime(mine.getTimeUntilReset())).replace("&", "§"));
+            String l3 = stands[2].getCustomName();
+            if (l3 == null || !l3.equals(timerMsg)) {
+                stands[2].setCustomName(timerMsg);
+            }
         }
     }
 
     public void flashForcedReset(Mine mine) {
         if (!mine.isHologramEnabled() || !mine.isSetup()) return;
-        List<ArmorStand> stands = holograms.get(mine.getName());
-        String flashMsg = plugin.getConfig().getString("hologram-format.forced-reset-line", "&a&lMine was Forcibly reset").replace("&", "§");
-
-        if (stands != null && stands.size() >= 3) {
-            stands.get(2).setCustomName(flashMsg);
-
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (mine.isHologramEnabled() && holograms.containsKey(mine.getName())) {
-                    stands.get(2).setCustomName(plugin.getConfig().getString("hologram-format.line-3", "&7Resets in &c%time%")
-                            .replace("%time%", TimeUtil.formatTime(mine.getTimeUntilReset())).replace("&", "§"));
-                }
-            }, 60L);
-        }
-    }
-
-    private List<ArmorStand> spawnHologram(Mine mine) {
-        removeHologram(mine.getName(), mine);
 
         World w = Bukkit.getWorld(mine.getWorldName());
-        if (w == null) return null;
+        if (w == null) return;
 
-        double x = mine.getMinX() + (mine.getMaxX() - mine.getMinX()) / 2.0 + 0.5;
-        double y = mine.getMaxY() + 2.5;
-        double z = mine.getMinZ() + (mine.getMaxZ() - mine.getMinZ()) / 2.0 + 0.5;
+        mine.setHologramFlashUntil(System.currentTimeMillis() + 3000);
 
-        List<ArmorStand> stands = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
-            ArmorStand as = w.spawn(new Location(w, x, y - (i * 0.3), z), ArmorStand.class);
-            as.setVisible(false);
-            as.setGravity(false);
-            as.setMarker(true);
-            as.setCustomNameVisible(true);
-            as.addScoreboardTag("pmx_holo_" + mine.getName());
-            stands.add(as);
+        double expectedX = mine.getMinX() + (mine.getMaxX() - mine.getMinX()) / 2.0 + 0.5;
+        double expectedZ = mine.getMinZ() + (mine.getMaxZ() - mine.getMinZ()) / 2.0 + 0.5;
+
+        Location holoLoc = mine.getHologramLocation();
+        if (holoLoc != null && holoLoc.getWorld() != null && holoLoc.getWorld().getName().equals(w.getName())) {
+            expectedX = holoLoc.getX();
+            expectedZ = holoLoc.getZ();
         }
-        holograms.put(mine.getName(), stands);
-        return stands;
-    }
 
-    public void removeHologram(String mineName, Mine mine) {
-        List<ArmorStand> stands = holograms.remove(mineName);
-        if (stands != null) {
-            for (ArmorStand as : stands) {
-                if (as.isValid()) as.remove();
+        if (!w.isChunkLoaded((int)expectedX >> 4, (int)expectedZ >> 4)) return;
+
+        String flashMsg = plugin.getConfig().getString("hologram-format.forced-reset-line", "&3&lMine was forcibly reset!").replace("&", "§");
+
+        for (Entity ent : w.getChunkAt((int)expectedX >> 4, (int)expectedZ >> 4).getEntities()) {
+            if (ent instanceof ArmorStand && ent.getScoreboardTags().contains("pmx_holo_" + mine.getName() + "_2")) {
+                ent.setCustomName(flashMsg);
+                break;
             }
         }
 
-        if (mine != null && mine.getWorldName() != null) {
-            World w = Bukkit.getWorld(mine.getWorldName());
-            if (w != null) {
-                for (Entity entity : w.getEntitiesByClass(ArmorStand.class)) {
-                    if (entity.getScoreboardTags().contains("pmx_holo_" + mineName)) {
-                        entity.remove();
+        Bukkit.getScheduler().runTaskLater(plugin, () -> updateHologram(mine), 65L);
+    }
+
+    public void removeHologram(String mineName, Mine mine) {
+        if (mine == null || mine.getWorldName() == null) return;
+        World w = Bukkit.getWorld(mine.getWorldName());
+        if (w == null) return;
+
+        for (org.bukkit.Chunk chunk : w.getLoadedChunks()) {
+            for (Entity ent : chunk.getEntities()) {
+                if (ent instanceof ArmorStand) {
+                    Set<String> tags = ent.getScoreboardTags();
+                    if (tags.contains("pmx_holo_" + mineName + "_0") ||
+                            tags.contains("pmx_holo_" + mineName + "_1") ||
+                            tags.contains("pmx_holo_" + mineName + "_2") ||
+                            tags.contains("pmx_holo_" + mineName)) {
+                        ent.remove();
                     }
                 }
             }
@@ -147,11 +173,19 @@ public class HologramManager {
     }
 
     public void removeAll() {
-        for (List<ArmorStand> stands : holograms.values()) {
-            for (ArmorStand as : stands) {
-                if (as.isValid()) as.remove();
+        for (World w : Bukkit.getWorlds()) {
+            for (org.bukkit.Chunk chunk : w.getLoadedChunks()) {
+                for (Entity ent : chunk.getEntities()) {
+                    if (ent instanceof ArmorStand) {
+                        for (String tag : ent.getScoreboardTags()) {
+                            if (tag.startsWith("pmx_holo_")) {
+                                ent.remove();
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
-        holograms.clear();
     }
 }

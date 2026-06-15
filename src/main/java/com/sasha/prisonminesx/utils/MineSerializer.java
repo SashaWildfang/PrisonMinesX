@@ -19,6 +19,7 @@ public class MineSerializer {
         config.set("bounds.maxY", mine.getMaxY());
         config.set("bounds.maxZ", mine.getMaxZ());
 
+        config.set("settings.description", mine.getDescription());
         config.set("settings.display-item", mine.getDisplayItem());
         config.set("settings.reset-delay", mine.getResetDelay());
         config.set("settings.reset-warnings", mine.getResetWarnings());
@@ -29,8 +30,21 @@ public class MineSerializer {
         config.set("settings.teleport-on-reset", mine.isTeleportOnReset());
         config.set("settings.hologram-enabled", mine.isHologramEnabled());
         config.set("settings.actionbar-enabled", mine.isActionbarEnabled());
-        config.set("settings.warn-global", mine.isWarnGlobal());
+
+        config.set("settings.warn-global", null);
+        config.set("settings.warn-mode", mine.getWarnMode());
+
         config.set("settings.paused", mine.isPaused());
+        config.set("settings.schematic", mine.getSchematic());
+        config.set("settings.reset-style", mine.getResetStyle());
+        config.set("settings.reset-schedules", mine.getResetSchedules());
+        config.set("settings.mine-fly", mine.isMineFly());
+        config.set("settings.warp-delay", mine.getWarpDelay());
+
+        config.set("settings.hunger", mine.isHunger());
+        config.set("settings.fall-damage", mine.isFallDamage());
+        config.set("settings.pvp", mine.isPvp());
+        config.set("settings.place-blocks", mine.isPlaceBlocks());
 
         config.set("analytics.lifetime-mined", mine.getLifetimeMinedBlocks());
         config.set("analytics.lifetime-resets", mine.getLifetimeResets());
@@ -42,6 +56,14 @@ public class MineSerializer {
             config.set("teleport.z", loc.getZ());
             config.set("teleport.yaw", loc.getYaw());
             config.set("teleport.pitch", loc.getPitch());
+        }
+
+        if (mine.getHologramLocation() != null) {
+            config.set("settings.holo-loc.x", mine.getHologramLocation().getX());
+            config.set("settings.holo-loc.y", mine.getHologramLocation().getY());
+            config.set("settings.holo-loc.z", mine.getHologramLocation().getZ());
+        } else {
+            config.set("settings.holo-loc", null);
         }
 
         config.set("composition", null);
@@ -64,6 +86,7 @@ public class MineSerializer {
 
         Mine mine = new Mine(mineName, worldName, minX, minY, minZ, maxX, maxY, maxZ);
 
+        if (config.contains("settings.description")) mine.setDescription(config.getString("settings.description"));
         if (config.contains("settings.display-item")) mine.setDisplayItem(config.getString("settings.display-item"));
         mine.setResetDelay(config.getInt("settings.reset-delay", 600));
         mine.setResetWarnings(config.getIntegerList("settings.reset-warnings"));
@@ -74,8 +97,21 @@ public class MineSerializer {
         mine.setTeleportOnReset(config.getBoolean("settings.teleport-on-reset", true));
         mine.setHologramEnabled(config.getBoolean("settings.hologram-enabled", false));
         mine.setActionbarEnabled(config.getBoolean("settings.actionbar-enabled", false));
-        mine.setWarnGlobal(config.getBoolean("settings.warn-global", true));
+
+        if (config.contains("settings.warn-mode")) mine.setWarnMode(config.getString("settings.warn-mode"));
+        else if (config.contains("settings.warn-global")) mine.setWarnMode(config.getBoolean("settings.warn-global") ? "GLOBAL" : "NEARBY");
+
         mine.setPaused(config.getBoolean("settings.paused", false));
+        if (config.contains("settings.schematic")) mine.setSchematic(config.getString("settings.schematic"));
+        if (config.contains("settings.reset-style")) mine.setResetStyle(config.getString("settings.reset-style"));
+        if (config.contains("settings.reset-schedules")) mine.setResetSchedules(config.getStringList("settings.reset-schedules"));
+        if (config.contains("settings.mine-fly")) mine.setMineFly(config.getBoolean("settings.mine-fly"));
+        if (config.contains("settings.warp-delay")) mine.setWarpDelay(config.getInt("settings.warp-delay"));
+
+        if (config.contains("settings.hunger")) mine.setHunger(config.getBoolean("settings.hunger"));
+        if (config.contains("settings.fall-damage")) mine.setFallDamage(config.getBoolean("settings.fall-damage"));
+        if (config.contains("settings.pvp")) mine.setPvp(config.getBoolean("settings.pvp"));
+        if (config.contains("settings.place-blocks")) mine.setPlaceBlocks(config.getBoolean("settings.place-blocks"));
 
         mine.setLifetimeMinedBlocks(config.getLong("analytics.lifetime-mined", 0));
         mine.setLifetimeResets(config.getInt("analytics.lifetime-resets", 0));
@@ -89,6 +125,13 @@ public class MineSerializer {
             float pitch = (float) config.getDouble("teleport.pitch");
 
             mine.setTpLocation(new Location(world, x, y, z, yaw, pitch));
+        }
+
+        if (config.contains("settings.holo-loc.x")) {
+            mine.setHologramLocation(new Location(Bukkit.getWorld(worldName),
+                    config.getDouble("settings.holo-loc.x"),
+                    config.getDouble("settings.holo-loc.y"),
+                    config.getDouble("settings.holo-loc.z")));
         }
 
         ConfigurationSection compSection = config.getConfigurationSection("composition");

@@ -1,11 +1,15 @@
 package com.sasha.prisonminesx.managers;
 
 import com.sasha.prisonminesx.PrisonMinesX;
+import com.sasha.prisonminesx.api.events.MinePreResetEvent;
 import com.sasha.prisonminesx.models.Mine;
 import com.sasha.prisonminesx.utils.FAWEResetEngine;
+import com.sasha.prisonminesx.utils.TimeUtil;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -48,6 +52,19 @@ public class MineManager {
         });
     }
 
+    public Mine getMineAt(Location loc) {
+        if (loc == null || loc.getWorld() == null) return null;
+        for (Mine mine : activeMines.values()) {
+            if (!mine.getWorldName().equals(loc.getWorld().getName())) continue;
+            if (loc.getBlockX() >= mine.getMinX() && loc.getBlockX() <= mine.getMaxX() &&
+                    loc.getBlockY() >= mine.getMinY() && loc.getBlockY() <= mine.getMaxY() + 2 &&
+                    loc.getBlockZ() >= mine.getMinZ() && loc.getBlockZ() <= mine.getMaxZ()) {
+                return mine;
+            }
+        }
+        return null;
+    }
+
     public void resetMine(String mineName) {
         resetMine(mineName, false);
     }
@@ -56,9 +73,13 @@ public class MineManager {
         Mine mine = getMine(mineName);
         if (mine != null && mine.isSetup()) {
 
+            MinePreResetEvent preEvent = new MinePreResetEvent(mine, isForced);
+            Bukkit.getPluginManager().callEvent(preEvent);
+            if (preEvent.isCancelled()) return;
+
             FAWEResetEngine.resetMineLayered(plugin, mine);
             mine.calculateTotalBlocks();
-            mine.incrementLifetimeResets(); // Track Analytics
+            mine.incrementLifetimeResets();
 
             if (mine.isHologramEnabled()) {
                 if (isForced) {
@@ -79,6 +100,82 @@ public class MineManager {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    public void teleportToMine(Player player, Mine mine) {
+        String msgPrefix = plugin.getMessages().getString("prefix", "").replace("&", "§");
+
+        if (!player.hasPermission("prisonminesx.mine." + mine.getName().toLowerCase()) && !player.hasPermission("prisonminesx.mine.*") && !player.hasPermission("prisonminesx.mine.all") && !player.hasPermission("prisonminesx.admin")) {
+            player.sendMessage(msgPrefix + plugin.getMessages().getString("mine.warp-no-access", "&cLocked.").replace("&", "§"));
+            return;
+        }
+
+        int delay = mine.getWarpDelay() == -1 ? plugin.getConfig().getInt("settings.default-warp-delay", 3) : mine.getWarpDelay();
+
+        if (delay <= 0 || player.hasPermission("prisonminesx.mine.warp.bypass")) {
+            doTeleport(player, mine, msgPrefix);
+            return;
+        }
+
+        player.sendMessage(msgPrefix + plugin.getMessages().getString("mine.warp-teleporting", "&7Teleporting in %time%.").replace("%time%", TimeUtil.formatTime(delay)).replace("%mine%", mine.getName()).replace("&", "§"));
+        Location startLoc = player.getLocation().clone();
+
+        new BukkitRunnable() {
+            int ticks = delay * 20;
+            @Override
+            public void run() {
+                if (!player.isOnline()) {
+                    this.cancel();
+                    return;
+                }
+                if (startLoc.distanceSquared(player.getLocation()) > 0.5) {
+                    player.sendMessage(msgPrefix + plugin.getMessages().getString("mine.warp-cancelled", "&cCancelled.").replace("&", "§"));
+                    this.cancel();
+                    return;
+                }
+                if (ticks <= 0) {
+                    doTeleport(player, mine, msgPrefix);
+                    this.cancel();
+                    return;
+                }
+                ticks -= 5;
+            }
+        }.runTaskTimer(plugin, 5L, 5L);
+    }
+
+    private void doTeleport(Player player, Mine mine, String msgPrefix) {
+        Location loc = mine.getTpLocation();
+        if (loc == null) {
+            World w = Bukkit.getWorld(mine.getWorldName());
+            if (w != null) {
+                loc = new Location(w, mine.getMinX() + (mine.getMaxX() - mine.getMinX()) / 2.0, mine.getMaxY() + 1.0, mine.getMinZ() + (mine.getMaxZ() - mine.getMinZ()) / 2.0);
+            }
+        }
+        if (loc != null) {
+            player.teleport(loc);
+            player.sendMessage(msgPrefix + plugin.getMessages().getString("mine.warp-success", "&7Warped!").replace("%mine%", mine.getName()).replace("&", "§"));
+        } else {
+            player.sendMessage(msgPrefix + plugin.getMessages().getString("commands.tp-failed", "&cFailed.").replace("&", "§"));
+        }
+    }
+
+    public void renameMine(String oldName, String newName) {
+        Mine mine = getMine(oldName);
+        if (mine != null) {
+            if (plugin.getHologramManager() != null) {
+                plugin.getHologramManager().removeHologram(oldName, mine);
+            }
+            activeMines.remove(oldName);
+            plugin.getDatabaseManager().getProvider().deleteMine(oldName);
+
+            mine.setName(newName);
+            activeMines.put(newName, mine);
+            plugin.getDatabaseManager().getProvider().saveMine(mine);
+
+            if (mine.isHologramEnabled()) {
+                plugin.getHologramManager().updateHologram(mine);
             }
         }
     }

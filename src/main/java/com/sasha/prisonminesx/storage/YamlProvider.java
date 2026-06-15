@@ -48,7 +48,6 @@ public class YamlProvider implements StorageProvider {
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
             String world = config.getString("world");
 
-            // PREMIUM FEATURE: Only load the mine if the world matches, or if we want ALL mines (null filter)
             if (targetWorld == null || (world != null && world.equals(targetWorld))) {
                 String mineName = file.getName().replace(".yml", "");
                 try {

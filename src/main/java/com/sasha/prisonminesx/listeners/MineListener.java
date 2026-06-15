@@ -1,18 +1,26 @@
 package com.sasha.prisonminesx.listeners;
 
 import com.sasha.prisonminesx.PrisonMinesX;
+import com.sasha.prisonminesx.api.events.MineBlockBreakEvent;
 import com.sasha.prisonminesx.models.Mine;
 import com.sasha.prisonminesx.utils.TimeUtil;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
+
+import java.util.Collection;
+import java.util.HashMap;
 
 public class MineListener implements Listener {
 
@@ -27,64 +35,122 @@ public class MineListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMineBlockPlace(BlockPlaceEvent event) {
         Location loc = event.getBlock().getLocation();
-        for (Mine mine : plugin.getMineManager().getMines()) {
-            if (!mine.getWorldName().equals(loc.getWorld().getName())) continue;
+        Mine mine = plugin.getMineManager().getMineAt(loc);
+        if (mine != null) {
+            // Enforce Place Blocks flag
+            if (!mine.isPlaceBlocks() && !event.getPlayer().hasPermission("prisonminesx.admin.place")) {
+                event.setCancelled(true);
 
-            if (loc.getBlockX() >= mine.getMinX() && loc.getBlockX() <= mine.getMaxX() &&
-                    loc.getBlockY() >= mine.getMinY() && loc.getBlockY() <= mine.getMaxY() &&
-                    loc.getBlockZ() >= mine.getMinZ() && loc.getBlockZ() <= mine.getMaxZ()) {
+                String prefix = plugin.getMessages().getString("prefix", "");
+                String msg = plugin.getMessages().getString("mine.place-disabled", "&cYou cannot place blocks in this mine!");
 
-                event.getBlock().setMetadata("pmx_placed", new FixedMetadataValue(plugin, true));
+                // Combine prefix and message first, then translate colors
+                String finalMessage = ChatColor.translateAlternateColorCodes('&', prefix + msg);
+                event.getPlayer().sendMessage(finalMessage);
+
                 return;
             }
+            event.getBlock().setMetadata("pmx_placed", new FixedMetadataValue(plugin, true));
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMineBlockBreak(BlockBreakEvent event) {
+        Player player = event.getPlayer();
         Location loc = event.getBlock().getLocation();
+        Mine mine = plugin.getMineManager().getMineAt(loc);
 
-        for (Mine mine : plugin.getMineManager().getMines()) {
-            if (!mine.getWorldName().equals(loc.getWorld().getName())) continue;
-
-            if (loc.getBlockX() >= mine.getMinX() && loc.getBlockX() <= mine.getMaxX() &&
-                    loc.getBlockY() >= mine.getMinY() && loc.getBlockY() <= mine.getMaxY() &&
-                    loc.getBlockZ() >= mine.getMinZ() && loc.getBlockZ() <= mine.getMaxZ()) {
-
-                if (event.getBlock().hasMetadata("pmx_placed")) {
-                    event.getBlock().removeMetadata("pmx_placed", plugin);
-                    return;
-                }
-
-                mine.incrementMinedBlocks();
-                mine.incrementLifetimeMinedBlocks(); // Track Analytics
-
-                if (mine.isHologramEnabled()) {
-                    plugin.getHologramManager().updateHologram(mine);
-                }
-
-                if (mine.isActionbarEnabled()) {
-                    String msg = plugin.getConfig().getString("actionbar-format", "&b&l%mine% &8| &e%mined%&7/&e%total% &7Mined &8| &c%time%")
-                            .replace("%mine%", mine.getName())
-                            .replace("%mined%", String.valueOf(mine.getMinedBlocks()))
-                            .replace("%total%", String.valueOf(mine.getTotalBlocks()))
-                            .replace("%time%", TimeUtil.formatTime(mine.getTimeUntilReset()))
-                            .replace("&", "§");
-
-                    for (Player p : loc.getWorld().getPlayers()) {
-                        if (p.getLocation().distanceSquared(loc) <= 2500) {
-                            p.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(msg));
-                        }
-                    }
-                }
-
-                if (!mine.isPaused()) {
-                    double threshold = mine.getResetPercentage() != -1.0 ? mine.getResetPercentage() : defaultPercentage;
-                    if (threshold > 0 && mine.getPercentRemaining() <= threshold) {
-                        plugin.getMineManager().resetMine(mine.getName());
-                    }
-                }
+        if (mine != null) {
+            if (event.getBlock().hasMetadata("pmx_placed")) {
+                event.getBlock().removeMetadata("pmx_placed", plugin);
                 return;
+            }
+
+            MineBlockBreakEvent apiEvent = new MineBlockBreakEvent(mine, player, event.getBlock());
+            Bukkit.getPluginManager().callEvent(apiEvent);
+
+            if (apiEvent.isCancelled()) {
+                event.setCancelled(true);
+                return;
+            }
+
+            // PREMIUM MECHANICS: Auto-Pickup & Custom Fortune
+            boolean customFortune = plugin.getConfig().getBoolean("settings.fortune-all-blocks", false);
+            boolean autoPickup = plugin.getConfig().getBoolean("settings.auto-pickup-blocks", false);
+
+            if (autoPickup || customFortune) {
+                ItemStack hand = player.getInventory().getItemInMainHand();
+                int fortuneLvl = hand.getEnchantmentLevel(Enchantment.LOOT_BONUS_BLOCKS);
+                Collection<ItemStack> drops = event.getBlock().getDrops(hand);
+
+                // Give the player Auto-EXP if the block drops any!
+                if (autoPickup && event.getExpToDrop() > 0) {
+                    player.giveExp(event.getExpToDrop());
+                    event.setExpToDrop(0);
+                }
+
+                event.setDropItems(false);
+
+                for (ItemStack drop : drops) {
+                    int amount = drop.getAmount();
+
+                    // Universal Fortune Formula
+                    if (customFortune && fortuneLvl > 0) {
+                        int multiplier = new java.util.Random().nextInt(fortuneLvl + 2);
+                        if (multiplier == 0) multiplier = 1;
+                        amount *= multiplier;
+                    }
+
+                    drop.setAmount(amount);
+
+                    if (autoPickup) {
+                        HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(drop);
+                        for (ItemStack left : leftover.values()) loc.getWorld().dropItemNaturally(loc, left);
+                    } else {
+                        loc.getWorld().dropItemNaturally(loc, drop);
+                    }
+                }
+            }
+
+            mine.incrementMinedBlocks();
+            mine.incrementLifetimeMinedBlocks();
+
+            // Update Player Analytics for GUI
+            Mine.PlayerRecord record = mine.getActivePlayers().get(player.getUniqueId());
+            if (record != null) {
+                record.blocksMined++;
+                record.lastMined = System.currentTimeMillis();
+
+                String blockName = com.sasha.prisonminesx.commands.MineCommand.formatName(event.getBlock().getType().name());
+                record.specificBlocksMined.put(blockName, record.specificBlocksMined.getOrDefault(blockName, 0) + 1);
+            }
+
+            if (mine.isHologramEnabled()) {
+                plugin.getHologramManager().updateHologram(mine);
+            }
+
+            if (mine.isActionbarEnabled()) {
+                String rawMsg = plugin.getConfig().getString("actionbar-format", "&9&l%mine% &8| &b%mined%&8/&b%total% &7Mined &8| &7Resets in: &b%time%")
+                        .replace("%mine%", mine.getName())
+                        .replace("%mined%", String.valueOf(mine.getMinedBlocks()))
+                        .replace("%total%", String.valueOf(mine.getTotalBlocks()))
+                        .replace("%time%", TimeUtil.formatTime(mine.getTimeUntilReset()));
+
+                // Translate colors properly using ChatColor
+                String msg = ChatColor.translateAlternateColorCodes('&', rawMsg);
+
+                for (Player p : loc.getWorld().getPlayers()) {
+                    if (p.getLocation().distanceSquared(loc) <= 2500) {
+                        p.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(msg));
+                    }
+                }
+            }
+
+            if (!mine.isPaused()) {
+                double threshold = mine.getResetPercentage() != -1.0 ? mine.getResetPercentage() : defaultPercentage;
+                if (threshold > 0 && mine.getPercentRemaining() <= threshold) {
+                    plugin.getMineManager().resetMine(mine.getName());
+                }
             }
         }
     }
