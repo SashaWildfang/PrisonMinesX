@@ -21,6 +21,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Local SQLite infrastructure utilizing HikariCP wrapper.
+ * Replaces MySQL's "ON DUPLICATE KEY UPDATE" with SQLite's "INSERT OR REPLACE INTO"
+ */
 public class SQLiteProvider implements StorageProvider {
 
     private final PrisonMinesX plugin;
@@ -35,13 +39,12 @@ public class SQLiteProvider implements StorageProvider {
     @Override
     public void init() {
         HikariConfig config = new HikariConfig();
-
         if (!plugin.getDataFolder().exists()) plugin.getDataFolder().mkdirs();
 
         File dbFile = new File(plugin.getDataFolder(), "mines.db");
         config.setJdbcUrl("jdbc:sqlite:" + dbFile.getAbsolutePath());
         config.setDriverClassName("org.sqlite.JDBC");
-        config.setMaximumPoolSize(1);
+        config.setMaximumPoolSize(1); // SQLite locks on write, pooling must remain strictly 1
 
         dataSource = new HikariDataSource(config);
         createTable();

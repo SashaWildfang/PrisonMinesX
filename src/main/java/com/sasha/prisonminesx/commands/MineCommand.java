@@ -26,6 +26,7 @@ import java.util.*;
 
 /**
  * Handles all structural routing for the core /prisonmines (/pmines) command tree.
+ * Interacts heavily with FastAsyncWorldEdit for region selections and GUI Engine for menus.
  */
 public class MineCommand implements CommandExecutor {
 
@@ -35,6 +36,7 @@ public class MineCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        // Enforce player-only execution as commands rely on Player Location / Inventories
         if (!(sender instanceof Player)) {
             sender.sendMessage(getMsg("commands.player-only"));
             return true;
@@ -47,6 +49,7 @@ public class MineCommand implements CommandExecutor {
             return true;
         }
 
+        // Base command executes Help Menu
         if (args.length == 0) {
             if (player.hasPermission("prisonminesx.admin") || player.hasPermission("prisonminesx.cmd.help")) {
                 handleHelp(player, 1);
@@ -58,11 +61,13 @@ public class MineCommand implements CommandExecutor {
 
         String subCommand = args[0].toLowerCase();
 
+        // Strict Sub-Command Permission Validation
         if (!player.hasPermission("prisonminesx.admin") && !player.hasPermission("prisonminesx.cmd." + subCommand)) {
             player.sendMessage(getMsg("prefix") + getMsg("commands.no-permission"));
             return true;
         }
 
+        // Command Routing Switch
         switch (subCommand) {
             case "help":
                 handleHelp(player, args.length > 1 ? parsePage(args[1]) : 1);
@@ -70,7 +75,7 @@ public class MineCommand implements CommandExecutor {
 
             case "warp":
                 if (args.length < 2) {
-                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.tp")); // Fallback to tp usage mapping
+                    player.sendMessage(getMsg("prefix") + getMsg("commands.usage.tp"));
                     return true;
                 }
                 Mine wMine = plugin.getMineManager().getMine(args[1]);
@@ -228,6 +233,7 @@ public class MineCommand implements CommandExecutor {
                 break;
 
             case "stop":
+                // Logic inverted from 'start' above to pause mine timers
                 if (args.length < 2) {
                     player.sendMessage(getMsg("prefix") + getMsg("commands.usage.stop"));
                     return true;
@@ -566,6 +572,7 @@ public class MineCommand implements CommandExecutor {
                     }
                 }
 
+                // Inject Default Flags upon creation
                 Mine newMine = new Mine(args[1], player.getWorld().getName(), min.getBlockX(), min.getBlockY(), min.getBlockZ(), max.getBlockX(), max.getBlockY(), max.getBlockZ());
 
                 newMine.setResetDelay(plugin.getConfig().getInt("settings.default-flags.reset-delay", 600));
@@ -642,6 +649,7 @@ public class MineCommand implements CommandExecutor {
                 org.bukkit.Bukkit.getPluginManager().callEvent(redefEvent);
                 if (redefEvent.isCancelled()) return true;
 
+                // Save local backup file for safety
                 File historyFolder = new File(plugin.getDataFolder(), "history");
                 if (!historyFolder.exists()) historyFolder.mkdirs();
                 File backupFile = new File(historyFolder, redefMine.getName() + "_" + System.currentTimeMillis() + ".yml");

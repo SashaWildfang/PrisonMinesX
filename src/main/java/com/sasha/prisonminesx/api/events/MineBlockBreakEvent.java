@@ -8,8 +8,10 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
 /**
- * Fired when a player breaks a valid block inside a PrisonMinesX mine.
- * Can be cancelled to prevent the plugin from tracking the block break.
+ * Fired when a player successfully breaks a valid block inside a PrisonMinesX mine.
+ * This event is called before the block drops are processed or analytics are updated.
+ * * Can be cancelled to prevent the plugin from tracking the block break, preventing
+ * it from counting towards the mine's reset percentage or player stats.
  */
 public class MineBlockBreakEvent extends Event implements Cancellable {
 
@@ -25,8 +27,13 @@ public class MineBlockBreakEvent extends Event implements Cancellable {
         this.block = block;
     }
 
+    /** @return The mine where the block was broken. */
     public Mine getMine() { return mine; }
+
+    /** @return The player who broke the block. */
     public Player getPlayer() { return player; }
+
+    /** @return The physical block that was broken. */
     public Block getBlock() { return block; }
 
     @Override

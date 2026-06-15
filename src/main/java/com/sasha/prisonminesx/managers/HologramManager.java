@@ -13,6 +13,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Handles the creation, destruction, and updating of floating ArmorStand holograms.
+ * Uses a unique scoreboard tagging system (pmx_holo_<mine_name>) to identify native stands.
+ */
 public class HologramManager {
 
     private final PrisonMinesX plugin;
@@ -21,6 +25,7 @@ public class HologramManager {
         this.plugin = plugin;
     }
 
+    /** Updates the text of the existing hologram, or creates one if it's missing. */
     public void updateHologram(Mine mine) {
         if (!mine.isHologramEnabled() || !mine.isSetup()) {
             removeHologram(mine.getName(), mine);
@@ -30,6 +35,7 @@ public class HologramManager {
         World w = Bukkit.getWorld(mine.getWorldName());
         if (w == null) return;
 
+        // Auto-Center math
         double expectedX = mine.getMinX() + (mine.getMaxX() - mine.getMinX()) / 2.0 + 0.5;
         double expectedY = mine.getMaxY() + 2.5;
         double expectedZ = mine.getMinZ() + (mine.getMaxZ() - mine.getMinZ()) / 2.0 + 0.5;
@@ -69,10 +75,12 @@ public class HologramManager {
             }
         }
 
+        // Clean up duplicated/orphaned instances
         for (ArmorStand ghost : ghostsToKill) {
             ghost.remove();
         }
 
+        // Spawn missing lines
         for (int i = 0; i < 3; i++) {
             if (stands[i] == null) {
                 Location loc = new Location(w, expectedX, expectedY - (i * 0.3), expectedZ);
@@ -95,21 +103,20 @@ public class HologramManager {
             }
         }
 
-        // Line 1
+        // Apply Line Configurations
         String pausedFlag = mine.isPaused() ? plugin.getConfig().getString("hologram-format.paused-placeholder", "&7(PAUSED)") : "";
         String l1 = plugin.getConfig().getString("hologram-format.line-1", "&9&l%mine% Mine %paused%")
                 .replace("%mine%", mine.getName())
                 .replace("%paused%", pausedFlag).replace("&", "§").trim();
         stands[0].setCustomName(l1);
 
-        // Line 2
         String l2 = plugin.getConfig().getString("hologram-format.line-2", "&b%mined%&8/&b%total% &7Blocks Mined &8(&b%percent%% &7Left&8)")
                 .replace("%mined%", String.valueOf(mine.getMinedBlocks()))
                 .replace("%total%", String.valueOf(mine.getTotalBlocks()))
                 .replace("%percent%", String.format("%.1f", mine.getPercentRemaining())).replace("&", "§");
         stands[1].setCustomName(l2);
 
-        // Line 3 (Only updates if flash cooldown has passed)
+        // Flash Cooldown evaluation (Allows "Forcibly Reset" warning to display momentarily)
         if (System.currentTimeMillis() >= mine.getHologramFlashUntil()) {
             String timerMsg = plugin.getConfig().getString("hologram-format.line-3", "&7Resets in &b%time%")
                     .replace("%time%", TimeUtil.formatTime(mine.getTimeUntilReset())).replace("&", "§");
@@ -121,6 +128,7 @@ public class HologramManager {
         }
     }
 
+    /** Changes the bottom line to a specific "Force Reset" message for 3 seconds. */
     public void flashForcedReset(Mine mine) {
         if (!mine.isHologramEnabled() || !mine.isSetup()) return;
 
@@ -152,6 +160,7 @@ public class HologramManager {
         Bukkit.getScheduler().runTaskLater(plugin, () -> updateHologram(mine), 65L);
     }
 
+    /** Completely erases the hologram structure from the world. */
     public void removeHologram(String mineName, Mine mine) {
         if (mine == null || mine.getWorldName() == null) return;
         World w = Bukkit.getWorld(mine.getWorldName());
@@ -172,6 +181,7 @@ public class HologramManager {
         }
     }
 
+    /** Global cleanup called in onDisable() to prevent ghost entities on restarts. */
     public void removeAll() {
         for (World w : Bukkit.getWorlds()) {
             for (org.bukkit.Chunk chunk : w.getLoadedChunks()) {

@@ -5,7 +5,10 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
 /**
- * Fired immediately after the FAWE reset layer task has completely finished.
+ * Fired immediately after the FAWE (FastAsyncWorldEdit) reset task has completely finished
+ * placing all blocks, schematics, and surfaces.
+ * * Crucial for safely teleporting players back into the mine, updating external scoreboards,
+ * or spawning custom entities/bosses inside the newly refreshed mine.
  */
 public class MinePostResetEvent extends Event {
 
@@ -16,6 +19,7 @@ public class MinePostResetEvent extends Event {
         this.mine = mine;
     }
 
+    /** @return The mine that has just finished resetting. */
     public Mine getMine() { return mine; }
 
     @Override

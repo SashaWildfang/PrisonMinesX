@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +22,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Intercepts chat to collect config variables from users navigating the GUI.
+ */
 public class ChatListener implements Listener {
 
     private final PrisonMinesX plugin;
@@ -30,6 +34,15 @@ public class ChatListener implements Listener {
 
     private String getMsg(String path) {
         return plugin.getMessages().getString(path, "").replace("&", "§");
+    }
+
+    /**
+     * MEMORY LEAK FIX: Removes players from the prompt map if they disconnect.
+     * Previously, disconnected players stayed in the map forever, causing heap degradation.
+     */
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        promptMap.remove(event.getPlayer().getUniqueId());
     }
 
     @EventHandler

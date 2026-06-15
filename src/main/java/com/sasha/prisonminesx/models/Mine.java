@@ -10,8 +10,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Represents a physical Prison Mine region and its configurations.
+ * Functions as the central data model stored in memory and serialized to DB/YAML.
+ */
 public class Mine {
 
+    /** Tracks individual player analytics to display in the Active Players GUI. */
     public static class PlayerRecord {
         public long enteredAt;
         public int blocksMined;
@@ -26,12 +31,13 @@ public class Mine {
         }
     }
 
+    // --- Core Region Properties ---
     private String name;
     private String description = null;
     private String worldName;
     private int minX, minY, minZ, maxX, maxY, maxZ;
 
-    // --- Core Flags & Defaults ---
+    // --- Configurations & Toggles ---
     private String displayItem = "DIAMOND_PICKAXE";
     private int resetDelay = 600;
     private List<Integer> resetWarnings = new ArrayList<>(Arrays.asList(600, 300, 60));
@@ -39,7 +45,7 @@ public class Mine {
     private Location tpLocation;
     private Map<String, Double> composition = new HashMap<>();
 
-    // --- Premium Flags & Defaults ---
+    // --- Premium Features ---
     private double resetPercentage = 20.0;
     private boolean fillMode = false;
     private String surface = null;
@@ -53,7 +59,7 @@ public class Mine {
     private String resetStyle = "BOTTOM_UP";
     private List<String> resetSchedules = new ArrayList<>();
 
-    // NEW REGION FLAGS
+    // --- Region Flags ---
     private boolean mineFly = false;
     private boolean hunger = false;
     private boolean fallDamage = false;
@@ -61,25 +67,29 @@ public class Mine {
     private boolean placeBlocks = false;
     private int warpDelay = -1;
 
-    // --- Premium Analytics ---
+    // --- Persistent Analytics ---
     private long lifetimeMinedBlocks = 0;
     private int lifetimeResets = 0;
 
-    // --- In-memory tracking ---
+    // --- Volatile Tracking (Not Saved) ---
     private transient int totalBlocks = 0;
     private transient int minedBlocks = 0;
     private transient int timeUntilReset = 600;
     private transient long hologramFlashUntil = 0;
     private transient final Map<UUID, PlayerRecord> activePlayers = new ConcurrentHashMap<>();
 
-    // --- Undo History Variables ---
+    // --- Undo History References ---
     private transient int[] prevBounds = null;
     private transient String prevWorld = null;
     private transient String prevSchematic = null;
 
+    /**
+     * Constructs a new mine and normalizes the boundary coordinates.
+     */
     public Mine(String name, String worldName, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
         this.name = name;
         this.worldName = worldName;
+        // Optimization: Ensure minimums are strictly lower than maximums for fast math
         this.minX = Math.min(minX, maxX);
         this.minY = Math.min(minY, maxY);
         this.minZ = Math.min(minZ, maxZ);
@@ -90,6 +100,7 @@ public class Mine {
 
     public boolean isSetup() { return worldName != null; }
 
+    /** Checks simple 3D AABB intersection against another mine instance. */
     public boolean intersects(Mine other) {
         if (!this.worldName.equals(other.getWorldName())) return false;
         return (this.minX <= other.getMaxX() && this.maxX >= other.getMinX()) &&
@@ -97,12 +108,14 @@ public class Mine {
                 (this.minZ <= other.getMaxZ() && this.maxZ >= other.getMinZ());
     }
 
+    /** Computes the maximum geometric volume of the mine to assess percentages. */
     public void calculateTotalBlocks() {
         this.totalBlocks = (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
         this.minedBlocks = 0;
         this.timeUntilReset = this.resetDelay;
     }
 
+    /** Caches the current state to memory for /pmines undo */
     public void savePreviousBounds() {
         this.prevBounds = new int[]{minX, minY, minZ, maxX, maxY, maxZ};
         this.prevWorld = this.worldName;
@@ -111,6 +124,7 @@ public class Mine {
 
     public boolean hasPreviousBounds() { return prevBounds != null; }
 
+    /** Restores bounds from memory and clears the cache. */
     public void restorePreviousBounds() {
         if (prevBounds != null) {
             this.worldName = prevWorld;
@@ -125,12 +139,14 @@ public class Mine {
         }
     }
 
+    /** @return Returns the exact ratio of remaining blocks mapping to percentage (0-100). */
     public double getPercentRemaining() {
         if (totalBlocks == 0) return 100.0;
         int remaining = totalBlocks - minedBlocks;
         return ((double) remaining / totalBlocks) * 100.0;
     }
 
+    // --- Standard Getters & Setters ---
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getDescription() { return description; }

@@ -10,6 +10,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Standard Local File Storage backend handling configuration maps.
+ */
 public class YamlProvider implements StorageProvider {
 
     private final PrisonMinesX plugin;

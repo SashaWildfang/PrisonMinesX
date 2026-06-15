@@ -11,6 +11,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 
+/**
+ * Handles all clicks inside the PrisonMinesX GUI engine.
+ * Relies on MineGUI.getBaseTitle() which has been updated to use O(1) Cached lookups
+ * rather than heavy string translation on every click event.
+ */
 public class GUIListener implements Listener {
 
     private final PrisonMinesX plugin;
@@ -26,6 +31,7 @@ public class GUIListener implements Listener {
         String title = event.getView().getTitle();
         String cleanTitle = ChatColor.stripColor(title);
 
+        // Fetch O(1) cached titles to evaluate context
         String mainBase = MineGUI.getBaseTitle(plugin, "gui.main.title");
         String editBase = MineGUI.getBaseTitle(plugin, "gui.edit.title");
         String flagsBase = MineGUI.getBaseTitle(plugin, "gui.flags.title");
@@ -34,12 +40,14 @@ public class GUIListener implements Listener {
         String warpsBase = MineGUI.getBaseTitle(plugin, "gui.warps.title");
         String statsBase = MineGUI.getBaseTitle(plugin, "gui.stats.title");
 
+        // Fast escape if inventory doesn't match our cache
         if (cleanTitle.startsWith(mainBase) || cleanTitle.startsWith(editBase) || cleanTitle.startsWith(flagsBase) || cleanTitle.startsWith(blocksBase) || cleanTitle.startsWith(activeBase) || cleanTitle.startsWith(warpsBase) || cleanTitle.startsWith(statsBase)) {
 
             event.setCancelled(true);
             if (event.getCurrentItem() == null) return;
             Player player = (Player) event.getWhoClicked();
 
+            // Handling Player Inventory interactions for specific config prompts
             if (event.getClickedInventory() != null && event.getClickedInventory().equals(event.getView().getBottomInventory())) {
                 if (event.getCurrentItem().getType() == Material.AIR) return;
 
@@ -99,6 +107,7 @@ public class GUIListener implements Listener {
                 return;
             }
 
+            // Target interactions inside the top GUI section
             if (!event.getCurrentItem().hasItemMeta() || event.getCurrentItem().getItemMeta().getDisplayName() == null) return;
 
             String itemName = event.getCurrentItem().getItemMeta().getDisplayName();

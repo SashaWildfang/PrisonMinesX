@@ -5,6 +5,7 @@ api-version: 1.20
 author: SashaTheSnep
 description: Advanced prison mines system
 
+# Essential Hooks
 depend: [FastAsyncWorldEdit]
 softdepend: [PlaceholderAPI]
 
@@ -14,14 +15,14 @@ commands:
     aliases: [pmines]
 
 permissions:
+  # Allows full access to all PrisonMinesX commands
   prisonminesx.admin:
-    description: Allows full access to all PrisonMinesX commands
     default: op
     children:
       prisonminesx.*: true
 
+  # Wildcard granting all PrisonMinesX permissions
   prisonminesx.*:
-    description: Wildcard granting all PrisonMinesX permissions
     default: op
     children:
       prisonminesx.cmd.pmine: true
@@ -45,6 +46,6 @@ permissions:
       prisonminesx.cmd.reset: true
       prisonminesx.cmd.setspawn: true
 
+  # Allows access to the base /pmines command navigation
   prisonminesx.cmd.pmine:
-    description: Allows access to the base /pmines command
     default: true

@@ -20,6 +20,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Scalable remote SQL infrastructure utilizing HikariCP for asynchronous connection pooling.
+ * Serializes Maps and Lists directly via Google Gson.
+ */
 public class MySQLProvider implements StorageProvider {
 
     private final PrisonMinesX plugin;
@@ -42,6 +46,7 @@ public class MySQLProvider implements StorageProvider {
         config.setUsername(plugin.getConfig().getString("storage.mysql.username", "root"));
         config.setPassword(plugin.getConfig().getString("storage.mysql.password", ""));
 
+        // Fast pool scaling
         config.setMaximumPoolSize(10);
         config.setMinimumIdle(2);
         config.setConnectionTimeout(10000);
@@ -88,6 +93,7 @@ public class MySQLProvider implements StorageProvider {
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.execute();
 
+            // Patch columns if upgrading from an older schema version
             try (PreparedStatement upgrade = conn.prepareStatement("ALTER TABLE prisonminesx_mines ADD COLUMN place_blocks BOOLEAN DEFAULT 0;")) { upgrade.execute(); } catch (SQLException ignored) { }
             try (PreparedStatement upgrade2 = conn.prepareStatement("ALTER TABLE prisonminesx_mines ADD COLUMN warn_mode VARCHAR(16) DEFAULT 'GLOBAL';")) { upgrade2.execute(); } catch (SQLException ignored) { }
             try (PreparedStatement upgrade3 = conn.prepareStatement("ALTER TABLE prisonminesx_mines ADD COLUMN holo_x DOUBLE;")) { upgrade3.execute(); } catch (SQLException ignored) { }
@@ -117,9 +123,7 @@ public class MySQLProvider implements StorageProvider {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            if (worldFilter != null) {
-                ps.setString(1, worldFilter);
-            }
+            if (worldFilter != null) ps.setString(1, worldFilter);
 
             try (ResultSet rs = ps.executeQuery()) {
                 Type warningType = new TypeToken<List<Integer>>(){}.getType();
@@ -159,6 +163,7 @@ public class MySQLProvider implements StorageProvider {
                     mine.setLifetimeMinedBlocks(rs.getLong("lifetime_mined"));
                     mine.setLifetimeResets(rs.getInt("lifetime_resets"));
 
+                    // Gson JSON reconstruction
                     String warningsJson = rs.getString("reset_warnings");
                     if (warningsJson != null && !warningsJson.isEmpty()) {
                         List<Integer> warnings = gson.fromJson(warningsJson, warningType);
@@ -201,6 +206,7 @@ public class MySQLProvider implements StorageProvider {
         return loadedMines;
     }
 
+    /** Executes asynchronous INSERT OR UPDATE (UPSERT) via ON DUPLICATE KEY. */
     @Override
     public void saveMine(Mine mine) {
         String sql = "INSERT INTO prisonminesx_mines (name, description, world, minX, minY, minZ, maxX, maxY, maxZ, reset_delay, reset_warnings, silent, tp_x, tp_y, tp_z, tp_yaw, tp_pitch, composition, display_item, reset_percentage, fill_mode, surface, teleport_on_reset, hologram_enabled, actionbar_enabled, warn_mode, paused, lifetime_mined, lifetime_resets, schematic, reset_style, reset_schedules, mine_fly, warp_delay, hunger, fall_damage, pvp, place_blocks, holo_x, holo_y, holo_z) " +
@@ -269,7 +275,7 @@ public class MySQLProvider implements StorageProvider {
                     ps.setNull(39, java.sql.Types.DOUBLE); ps.setNull(40, java.sql.Types.DOUBLE); ps.setNull(41, java.sql.Types.DOUBLE);
                 }
 
-                // ON DUPLICATE KEY UPDATE parameters (Starts at 42)
+                // Apply parameters to the ON DUPLICATE UPDATE fields
                 ps.setString(42, mine.getDescription());
                 ps.setString(43, mine.getWorldName());
                 ps.setInt(44, mine.getMinX());

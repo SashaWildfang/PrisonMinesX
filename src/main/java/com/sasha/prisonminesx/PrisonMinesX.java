@@ -3,6 +3,7 @@ package com.sasha.prisonminesx;
 import com.sasha.prisonminesx.api.PrisonMinesAPI;
 import com.sasha.prisonminesx.commands.MineCommand;
 import com.sasha.prisonminesx.commands.MineTabCompleter;
+import com.sasha.prisonminesx.gui.MineGUI;
 import com.sasha.prisonminesx.hooks.PrisonMinesXExpansion;
 import com.sasha.prisonminesx.listeners.ChatListener;
 import com.sasha.prisonminesx.listeners.GUIListener;
@@ -26,7 +27,7 @@ import java.io.File;
 /**
  * PrisonMinesX
  * Developed by SashaTheSnep
- * * The main core class responsible for initializing managers, tasks, and registering listeners.
+ * The main core class responsible for initializing managers, tasks, and registering listeners.
  */
 public final class PrisonMinesX extends JavaPlugin {
 
@@ -41,6 +42,9 @@ public final class PrisonMinesX extends JavaPlugin {
         // Generates the default configuration files if they do not exist
         saveDefaultConfig();
         setupMessagesFile();
+
+        // CACHE FIX: Generates the O(1) GUI Title Map to prevent massive string operations
+        MineGUI.cacheTitles(this);
 
         // Initialize the Storage infrastructure (MySQL, SQLite, YAML)
         this.databaseManager = new DatabaseManager(this);
@@ -109,6 +113,9 @@ public final class PrisonMinesX extends JavaPlugin {
         saveDefaultConfig();
         reloadConfig();
         setupMessagesFile();
+
+        // Refresh GUI cache logic
+        MineGUI.cacheTitles(this);
 
         // Close inventories to prevent interaction with orphaned objects
         for (Player p : Bukkit.getOnlinePlayers()) {

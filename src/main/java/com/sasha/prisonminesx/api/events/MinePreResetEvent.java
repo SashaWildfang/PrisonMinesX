@@ -6,8 +6,9 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
 /**
- * Fired immediately before a mine begins to reset.
- * Can be cancelled by other plugins to prevent the reset.
+ * Fired immediately before a mine begins to reset via FAWE.
+ * This is called before any blocks are changed and before players are teleported out.
+ * Can be cancelled by other plugins to delay or completely prevent the reset.
  */
 public class MinePreResetEvent extends Event implements Cancellable {
 
@@ -21,7 +22,10 @@ public class MinePreResetEvent extends Event implements Cancellable {
         this.isForced = isForced;
     }
 
+    /** @return The mine scheduled to reset. */
     public Mine getMine() { return mine; }
+
+    /** @return True if the reset was triggered manually by an admin via command/GUI. */
     public boolean isForced() { return isForced; }
 
     @Override

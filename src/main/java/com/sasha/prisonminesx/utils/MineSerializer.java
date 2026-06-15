@@ -8,6 +8,9 @@ import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.Map;
 
+/**
+ * Handles the flat-file encoding/decoding of Mine objects to the Bukkit YAML standard.
+ */
 public class MineSerializer {
 
     public static void serializeToYaml(Mine mine, ConfigurationSection config) {

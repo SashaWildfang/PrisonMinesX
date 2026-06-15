@@ -14,6 +14,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Tracks player presence within mine boundaries specifically for Flight toggling,
+ * region transitions, and Active Player GUI menus.
+ * Due to Spatial Hashing, checking player locations against every mine is extremely performant!
+ */
 public class PlayerTrackerTask extends BukkitRunnable {
 
     private final PrisonMinesX plugin;
@@ -33,10 +38,12 @@ public class PlayerTrackerTask extends BukkitRunnable {
         boolean notify = plugin.getConfig().getBoolean("settings.notify-flight-changes", true);
 
         for (Player p : Bukkit.getOnlinePlayers()) {
+            // Evaluates instantly through chunk mapping
             Mine insideMine = plugin.getMineManager().getMineAt(p.getLocation());
             String prevMineName = currentMineMap.get(p.getUniqueId());
             String currMineName = insideMine != null ? insideMine.getName() : null;
 
+            // Transitioning Out of a Mine
             if (prevMineName != null && !prevMineName.equals(currMineName)) {
                 Mine m = plugin.getMineManager().getMine(prevMineName);
                 if (m != null) m.removeActivePlayer(p.getUniqueId());
@@ -46,7 +53,7 @@ public class PlayerTrackerTask extends BukkitRunnable {
                 insideMine.addActivePlayer(p.getUniqueId());
                 currentMineMap.put(p.getUniqueId(), currMineName);
 
-                // Flight requires 2 blocks depth minimum
+                // Flight requires 2 blocks depth minimum internally (prevents border cheating)
                 boolean canFly = false;
                 if (insideMine.isMineFly() || p.hasPermission("prisonminesx.minefly")) {
                     if (p.getLocation().getY() <= insideMine.getMaxY() - 0.5) {
@@ -78,6 +85,7 @@ public class PlayerTrackerTask extends BukkitRunnable {
             }
         }
 
+        // Live refresh logic for Active Players menu
         for (Player viewer : Bukkit.getOnlinePlayers()) {
             if (viewer.getOpenInventory() != null && viewer.getOpenInventory().getTopInventory() != null) {
                 String title = viewer.getOpenInventory().getTitle();

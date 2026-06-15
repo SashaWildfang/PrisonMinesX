@@ -21,6 +21,7 @@ import java.util.UUID;
 
 /**
  * The unified GUI Engine handling construction, pagination, and real-time refreshes for all menus.
+ * Implements static title caching to prevent O(1) String translation overhead on InventoryClickEvents.
  */
 public class MineGUI {
 
@@ -36,6 +37,7 @@ public class MineGUI {
         SIZE("Mine Size"),
         STATUS("Mine Status"),
         WORLD("World");
+
         private final String name;
         SortType(String name) { this.name = name; }
         public String getName() { return name; }
@@ -43,24 +45,40 @@ public class MineGUI {
 
     public static final Map<UUID, SortType> playerSorts = new HashMap<>();
 
+    // OPTIMIZATION: Cache to avoid extreme overhead during rapid UI interactions
+    private static final Map<String, String> cachedBaseTitles = new HashMap<>();
+
     /**
-     * Safely strips all variables and color codes from a messages.yml inventory title to return
-     * a clean matching string for tracking open interfaces.
+     * Pre-loads necessary GUI titles from messages.yml upon plugin start or reload.
+     */
+    public static void cacheTitles(PrisonMinesX plugin) {
+        cachedBaseTitles.clear();
+        String[] paths = {"gui.main.title", "gui.edit.title", "gui.flags.title", "gui.blocks.title", "gui.active-players.title", "gui.warps.title", "gui.stats.title"};
+        for (String path : paths) {
+            String raw = plugin.getMessages().getString(path, "UNKNOWN");
+            String translated = ChatColor.translateAlternateColorCodes('&', raw);
+            cachedBaseTitles.put(path, ChatColor.stripColor(translated).split("%")[0].trim());
+        }
+    }
+
+    /**
+     * Safely retrieves a cached GUI title base to verify if a click event belongs to PrisonMinesX.
      */
     public static String getBaseTitle(PrisonMinesX plugin, String path) {
-        String raw = plugin.getMessages().getString(path, "");
-        if (raw == null || raw.isEmpty()) return "UNKNOWN_TITLE";
-        String translated = ChatColor.translateAlternateColorCodes('&', raw);
-        return ChatColor.stripColor(translated).split("%")[0].trim();
+        if (!cachedBaseTitles.containsKey(path)) {
+            // Fallback for missing cache maps
+            String raw = plugin.getMessages().getString(path, "");
+            if (raw == null || raw.isEmpty()) return "UNKNOWN_TITLE";
+            return ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', raw)).split("%")[0].trim();
+        }
+        return cachedBaseTitles.get(path);
     }
 
     private static String get(PrisonMinesX plugin, String path) {
         return plugin.getMessages().getString(path, "&c" + path).replace("&", "§");
     }
 
-    /**
-     * Handles deep Lore replacement routing, injecting blank lines securely around optional parameters.
-     */
+    /** Handles deep Lore replacement routing, injecting blank lines securely around optional parameters. */
     private static List<String> getLore(PrisonMinesX plugin, String path, String... replace) {
         List<String> raw = plugin.getMessages().getStringList(path);
         List<String> formatted = new ArrayList<>();
@@ -91,9 +109,7 @@ public class MineGUI {
         return formatted;
     }
 
-    /**
-     * Formats extremely large block counters to human-readable strings (e.g. 1.25M)
-     */
+    /** Formats extremely large block counters to human-readable strings (e.g. 1.25M) */
     public static String formatLargeNumber(double value) {
         if (value < 1000) {
             if (value == Math.floor(value)) {

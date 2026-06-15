@@ -13,6 +13,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Provides predictive auto-completion for /prisonmines commands.
+ * Checks permissions dynamically to only suggest commands the sender can use.
+ */
 public class MineTabCompleter implements TabCompleter {
 
     private final PrisonMinesX plugin;
@@ -34,6 +38,7 @@ public class MineTabCompleter implements TabCompleter {
             return completions;
         }
 
+        // Sub-command suggestion
         if (args.length == 1) {
             List<String> allowedCommands = new ArrayList<>();
             for (String cmd : commands) {
@@ -43,6 +48,7 @@ public class MineTabCompleter implements TabCompleter {
             }
             StringUtil.copyPartialMatches(args[0], allowedCommands, completions);
         }
+        // Sub-command argument suggestion (Mine names, pages, etc.)
         else if (args.length == 2) {
             String subCmd = args[0].toLowerCase();
 
@@ -95,6 +101,7 @@ public class MineTabCompleter implements TabCompleter {
                 StringUtil.copyPartialMatches(args[1], accessibleMines, completions);
             }
         }
+        // Deep argument suggestions (Material names, coordinates)
         else if (args.length == 3) {
             if (args[0].equalsIgnoreCase("rename")) {
                 completions.add("<NewName>");

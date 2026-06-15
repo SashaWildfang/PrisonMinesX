@@ -7,6 +7,10 @@ import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Registers internal PrisonMinesX variables with PlaceholderAPI.
+ * Allows scoreboards, actionbars, and other plugins to display mine stats.
+ */
 public class PrisonMinesXExpansion extends PlaceholderExpansion {
 
     private final PrisonMinesX plugin;
@@ -37,8 +41,7 @@ public class PrisonMinesXExpansion extends PlaceholderExpansion {
 
     @Override
     public String onRequest(OfflinePlayer player, @NotNull String params) {
-        // Formats: %prisonminesx_mine_<name>_<property>%
-
+        // Usage Format: %prisonminesx_mine_<name>_<property>%
         String[] parts = params.split("_");
         if (parts.length >= 3 && parts[0].equalsIgnoreCase("mine")) {
             String mineName = parts[1];

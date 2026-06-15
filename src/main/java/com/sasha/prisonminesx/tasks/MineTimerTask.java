@@ -46,6 +46,7 @@ public class MineTimerTask extends BukkitRunnable {
             if (mine.isPaused()) continue;
 
             boolean triggeredCron = false;
+            // Iterate over daily real-world schedule strings
             for (String sched : mine.getResetSchedules()) {
                 String targetTime = sched.length() == 5 ? sched + ":00" : sched;
 
@@ -65,12 +66,11 @@ public class MineTimerTask extends BukkitRunnable {
                 }
             }
 
+            // Fire reset based on Cron scheduling
             if (triggeredCron) {
-                if (skipEmpty && mine.getMinedBlocks() == 0) {
-                    continue;
-                }
+                if (skipEmpty && mine.getMinedBlocks() == 0) continue;
 
-                // Force sync block updates on main thread to avoid async crash!
+                // Force sync block updates on main thread to avoid FAWE async initialization crash!
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getMineManager().resetMine(mine.getName()));
                 mine.setTimeUntilReset(mine.getResetDelay());
                 continue;
@@ -94,6 +94,7 @@ public class MineTimerTask extends BukkitRunnable {
                 }
             }
 
+            // Sync Actionbar tracking dynamically
             if (mine.isActionbarEnabled()) {
                 String msg = plugin.getConfig().getString("actionbar-format", "&9&l%mine% &8| &b%mined%&8/&b%total% &7Mined &8| &7Resets in: &b%time%")
                         .replace("%mine%", mine.getName())
